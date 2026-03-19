@@ -1,8 +1,0 @@
-[submodule "frontend"]
-	path = frontend
-	url = git@gitlab.secoder.net:MrFan/frontend.git
-	branch = dev
-[submodule "backend"]
-	path = backend
-	url = git@gitlab.secoder.net:MrFan/backend.git
-	branch = dev
