@@ -1,0 +1,19 @@
+
+django
+
+django-cors-headers
+# pymysql
+# mysqlclient
+
+pytest
+pytest-django
+pytest-cov
+coverage
+
+uwsgi
+
+httpx
+
+channels
+daphne
+pytest-asyncio

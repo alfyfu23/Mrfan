@@ -1,0 +1,77 @@
+# Basic
+.git
+.gitignore
+README.md
+
+# Node / package manager
+node_modules
+.pnp
+**/.pnp.js
+.pnpm
+.pnpm-store
+
+# Lockfiles: keep pnpm-lock.yaml (do NOT ignore) but ignore other lockfiles if present
+package-lock.json
+yarn.lock
+
+# Next.js build output
+.next
+.next/**
+out
+dist
+build
+
+# Next.js specific caches
+.next/cache
+
+# Environment and secrets
+.env
+.env.*
+.env*.local
+
+# Testing / coverage
+coverage
+.coverage
+.nyc_output
+test-report.xml
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+*.swp
+*~
+
+# CI / tooling
+.vercel
+.github
+/.github
+.gitlab-ci.yml
+sonar-project.properties
+
+# TypeScript
+**/*.tsbuildinfo
+next-env.d.ts
+
+# Databases
+**/db.sqlite
+
+# Docker
+.dockerignore
+
+# Misc caches
+.cache
+.parcel-cache
+/.turbo
+node_repl_history
+
+# Windows
+**/*:Zone.Identifier

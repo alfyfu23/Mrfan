@@ -1,0 +1,1 @@
+export const BACKEND_URL = "backend-mrfan.app.secoder.net"

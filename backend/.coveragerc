@@ -1,0 +1,24 @@
+[run]
+branch = True
+source = .  
+omit =
+    */migrations/*
+    */tests/*
+    */settings.py
+    manage.py
+    */asgi.py
+    */wsgi.py
+    venv/*
+    .conda/*
+    */site-packages/*
+    */__pycache__/*
+
+[report]
+show_missing = True
+skip_covered = True
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+
+[xml]
+output = coverage.xml
