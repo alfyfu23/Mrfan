@@ -1,6 +1,13 @@
 __pycache__/
+*.pyc
 **/migrations/
-db.sqlite3
+*.sqlite3
+
+data/
+media/
+
+.env
+.env.*
 
 .coverage
 coverage-reports/
@@ -8,9 +15,11 @@ xunit-reports/
 
 .DS_Store
 .pytest_cache
+.vscode/
 
 *.log
-
 *.ipynb
 
-media/uploads
+.venv/
+venv/
+env/

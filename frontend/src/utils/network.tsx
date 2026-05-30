@@ -57,7 +57,6 @@ export class NetworkError extends Error {
     valueOf(): string { return this.message; }
 }
 
-// 不推荐使用助教给的这个，错误处理不够精细
 export const request = async (
     url: string,
     method: "GET" | "POST" | "PUT" | "DELETE",

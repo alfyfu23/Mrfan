@@ -1,7 +1,6 @@
 FROM node:22 AS builder
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm config set registry https://npm-cache-sepi.app.secoder.net/
 
 WORKDIR /app
 COPY . .

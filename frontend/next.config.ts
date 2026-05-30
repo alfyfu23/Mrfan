@@ -1,16 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    /* config options here */
     output: 'standalone',
-
-    reactStrictMode: false, /* @note: To prevent duplicated call of useEffect */
-    // swcMinify: true,
+    reactStrictMode: false,
 
     async rewrites() {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "localhost:8000";
+        const protocol = backendUrl.includes("localhost") ? "http" : "https";
         return [{
             source: "/api/:path*",
-            destination: "https://backend-mrfan.app.secoder.net/:path*",
+            destination: `${protocol}://${backendUrl}/:path*`,
         }];
     }
 };
