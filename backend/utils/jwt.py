@@ -5,9 +5,17 @@ import time
 import json
 import base64
 import os
+import warnings
 from typing import Optional
 
-SALT = os.environ.get("JWT_SECRET_KEY", "change-me-in-production").encode("utf-8")
+_jwt_secret = os.environ.get("JWT_SECRET_KEY", "change-me-in-production")
+if _jwt_secret == "change-me-in-production":
+    warnings.warn(
+        "JWT_SECRET_KEY is using the default insecure value. "
+        "Please set a proper key via the JWT_SECRET_KEY environment variable.",
+        stacklevel=1,
+    )
+SALT = _jwt_secret.encode("utf-8")
 EXPIRE_IN_SECONDS = 60 * 60 * 2
 ALT_CHARS = "-_".encode("utf-8")
 

@@ -306,31 +306,7 @@ def create_group(req: HttpRequest):
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
-    user, err_resp = _get_active_user(user_id)
+    creator, err_resp = _get_active_user(user_id)
     if err_resp:
         return err_resp
 
@@ -340,9 +316,6 @@ def create_group(req: HttpRequest):
     avatar = data.get('avatar') or ''
 
     User = get_user_model()
-    creator, err_resp = _get_active_user(user_id)
-    if err_resp:
-        return err_resp
 
     # 先检查是否包含已注销用户（存在但 is_active=False）
     if User.objects.filter(id__in=member_ids, is_active=False).exists():
