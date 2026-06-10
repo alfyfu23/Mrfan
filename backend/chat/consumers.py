@@ -98,7 +98,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
             await self.accept()
             await mark_online(self.user_id)
-            print(f"<Info> (connect) accepted connection user_id={self.user_id} room={self.room_group_name}")
+            self.logger.info(f"(connect) accepted connection user_id={self.user_id} room={self.room_group_name}")
         except Exception:
             self.logger.exception("Failed to add channel to group or accept websocket")
             try:
@@ -123,7 +123,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await mark_offline(user_id)
         except Exception:
             self.logger.exception("Failed to update presence on disconnect")
-        print(f"<Info> (disconnect) room={getattr(self, 'room_group_name', None)} close_code={close_code}")
+        self.logger.info(f"(disconnect) room={getattr(self, 'room_group_name', None)} close_code={close_code}")
 
     async def receive(self, text_data):
         """接收并处理来自客户端的消息。
@@ -597,7 +597,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 member=member,
                 content=message,
             )
-            print(f"<Info> (save_message) message_saved user_id={user_id} conv={getattr(conversation,'id',None)}")
+            self.logger.info(f"(save_message) message_saved user_id={user_id} conv={getattr(conversation,'id',None)}")
         except Exception:
             self.logger.exception("Failed to create Message for conversation %s", getattr(self, 'conversation_id', None))
             await self.send(text_data=json.dumps({'type': 'error', 'error': 'server_error'}))

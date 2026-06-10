@@ -138,16 +138,13 @@ export default function GroupInfoPanel({ convId, onClose, convName, convAvatar }
     const handleSetRole = async (userId: number, role: 'admin' | 'member') => {
         if (!token) return;
 
-        console.log('设置角色:', { userId, role });
         const success = await setMemberRole(token, convId, userId, role);
         if (success) {
             const actionText = role === 'admin' ? '设为管理员' : '取消管理员';
             toast.success(`${actionText}成功`);
-            console.log('设置角色成功，重新加载数据');
             // 重新加载数据以更新所有状态
             load();
         } else {
-            console.log('设置角色失败');
             toast.error('设置失败');
         }
     };
@@ -158,7 +155,6 @@ export default function GroupInfoPanel({ convId, onClose, convName, convAvatar }
             const success = await transferOwner(token, convId, userId);
             if (success) {
                 toast.success('群主转让成功');
-                console.log('群主转让成功，更新状态');
                 // 转让群主后更新本地状态，不刷新页面
                 setTimeout(() => {
                     // 重新加载群信息，这会更新当前用户的角色
@@ -213,7 +209,6 @@ export default function GroupInfoPanel({ convId, onClose, convName, convAvatar }
 
     const handleDisbandGroup = async () => {
         if (!token || !groupInfo || groupInfo.role !== 'owner') {
-            console.log('解散群聊权限检查失败:', { token: !!token, hasGroupInfo: !!groupInfo, role: groupInfo?.role });
             toast.error('权限不足，无法解散群聊');
             return;
         }

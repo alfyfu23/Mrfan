@@ -10,7 +10,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
 import json 
+import logging
 
+logger = logging.getLogger(__name__)
 
 # 开发阶段临时禁用 CSRF；生产请开启并配置跨域
 
@@ -91,7 +93,7 @@ def login(req: HttpRequest):
         password = data["password"]
     except Exception:
         info = "Invalid request. Username or password not found."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=1001,
             info=info,
@@ -104,7 +106,7 @@ def login(req: HttpRequest):
             user = User.objects.filter(deactivated_username=username, is_active=False).first()
         if not user:
             info = "Username does not exist."
-            print(info)
+            logger.info(info)
             return request_failed(
                 code=1003,
                 info=info,
@@ -113,7 +115,7 @@ def login(req: HttpRequest):
         # 检查用户是否已注销
         if not user.is_active:
             info = "User account has been deactivated."
-            print(info)
+            logger.info(info)
             return request_failed(
                 code=1005,
                 info=info,
@@ -121,7 +123,7 @@ def login(req: HttpRequest):
             )
     except Exception:
         info = "Username does not exist."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=1003,
             info=info,
@@ -140,7 +142,7 @@ def login(req: HttpRequest):
     else:
         # 验证失败
         info = "Wrong password."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=1004,
             info=info,
@@ -350,6 +352,6 @@ def delete_account(req: HttpRequest):
             _notify_conversation_event(member_ids, 'group_disbanded', conv.id)
     except Exception as e:
         # 不阻断注销流程，但记录异常便于排查
-        print(f"<Warning> failed to mark owned groups inactive for user {user.id}: {e}")
+        logger.warning(f"failed to mark owned groups inactive for user {user.id}: {e}")
 
     return request_success()

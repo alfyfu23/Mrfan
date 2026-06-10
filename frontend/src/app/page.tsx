@@ -9,7 +9,6 @@ export default function Home() {
     const { token, isInitialized } = useUserContext();
     const isLoggedIn = token != null;
     
-    console.log(token, isLoggedIn, isInitialized);
     const router = useRouter();
 
     useEffect(() => {

@@ -256,123 +256,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
         setOnlineUsers(next);
     }, []);
 
-    // const login = (input_username: string, password: string) => {
-    //     // ========================== 登录 ==========================
-    //     console.log("<login> username:", input_username, ", password: ", password);
-    //     fetch(`https://${BACKEND_URL}/account/login`, {
-    //         method: 'POST',
-    //         headers: { 'Content-Type': 'application/json' },
-    //         body: JSON.stringify({ username: input_username, password: password }),
-    //     }).then(response => {
-    //         // response.json() 返回一个 Promise
-    //         return response.json();
-    //     }).then(data => {
-    //         if (data.code == 1003) {
-    //             return;
-    //             // 用户名不存在，自动注册
-    //             toast.info(`正在自动注册: ${input_username}`)
-    //             fetch(`https://${BACKEND_URL}/account/register`, {
-    //                 method: "POST",
-    //                 headers: { 'Content-Type': 'application/json' },
-    //                 body: JSON.stringify({ input_username, password })
-    //             }).then(response => response.json()).then(data => {
-    //                 if (data.code != 0) {
-    //                     toast.error("自动注册失败！请手动注册")
-    //                 }
-    //                 jwt_token.current = data.jwt_token;
-    //                 setToken(jwt_token.current);
-    //             })
-    //         } else if (data.code == 1004) {
-    //             // 密码错误
-    //             toast.error("密码错误!");
-    //             return;
-    //         } else if (data.code !== 0) {
-    //             toast.error(`未知错误: ${data.code}, ${data.info}`);
-    //             return;
-    //         } else {
-    //             // 登录成功
-    //             if (wsRef.current) wsRef.current.close();
-    //             setConversations([]);
-    //             jwt_token.current = data.jwt_token;
-    //             setToken(jwt_token.current);
-    //             setUsername(input_username);
-    //         }
-    //     }).then(() => {
-    //         // ========================== 本地存储 ==========================
-    //         if (jwt_token.current) {
-    //             _store("token", jwt_token.current);
-    //             _store("username", input_username);
-    //         }
-    //         // ========================== 请求会话主页 ==========================
-    //         fetch(`https://${BACKEND_URL}/new/home`, {
-    //             method: "GET",
-    //             headers: {
-    //                 "Accept": "application/json",
-    //                 "Authorization": "Bearer " + jwt_token.current
-    //             }
-    //         }).then(response => {
-    //             return response.json();
-    //         }).then(data => {
-    //             const _conversations = data["conversations"];
-    //             for (const conv of _conversations) {
-    //                 let messages: Message[] = [];
-    //                 for (const msg of conv['messages']) {
-    //                     const new_message: Message = {
-    //                         id: msg["id"],
-    //                         sender: msg["sender"],
-    //                         nickname: msg["nickname"],
-    //                         text: msg["content"],
-    //                         timestamp: new Date(msg["time"])
-    //                     };
-    //                     messages.push(new_message);
-    //                 };
-    //                 for (const t of conv["members"]) {
-    //                     members.push({
-    //                         id: t["id"],
-    //                         nickname: t["nickname"]
-    //                     })
-    //                 };
-    //                 const newConversation: Conversation = {
-    //                     id: conv['id'],
-    //                     name: conv["name"],
-    //                     messages: messages,
-    //                     member: members
-    //                 };
-    //                 setConversations(prev => [...prev, newConversation]);
-    //             };
-    //         }).catch(error => {
-    //             console.error('请求会话主页失败:', error);
-    //         })
-    //         // ========================== 建立websocket ==========================
-    //         // wsRef.current = new WebSocket(`wss://${BACKEND_URL}/ws/chat?token=${jwt_token.current}`);
-    //         // wsRef.current.onopen = () => {
-    //         //     console.log("WebSocket 已连接");
-    //         // };
-    //         // wsRef.current.onmessage = (event) => {
-    //         //     try {
-    //         //         const data = JSON.parse(event.data);
-    //         //         if (data["type"] == "message") {
-    //         //             const conversation_id = data["conversation"];
-    //         //             const _sender_to_nickname = data["members"];
-    //         //             const message: Message = {
-    //         //                 id: data["message"]['id'],
-    //         //                 sender: data["message"]['sender'],
-    //         //                 text: data["message"]['content'],
-    //         //                 nickname: _sender_to_nickname[data["message"]['sender']],
-    //         //                 timestamp: new Date(data["message"]['time'])
-    //         //             }
-    //         //             update_message(message, conversation_id);                    
-    //         //         }
-    //         //     } catch {
-    //         //         console.log("接收消息出错: JSON解析失败");
-    //         //     }
-    //         // };
-    //     }).catch(error => {
-    //         // 捕获网络错误或 JSON 解析错误
-    //         console.error('登录失败:', error);
-    //     });
-        
-    // }
     const logout = () => {
         setToken(null);
         setSelfAvatar(null);
@@ -408,7 +291,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             if (wsRef.current) {
                 wsRef.current.close();
-                console.log("WebSocket 已关闭");
             }
         };
     }, []);
@@ -518,7 +400,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
                 
                 // 调试日志，检查消息类型
                 if (payload.type === 'image') {
-                    console.log('接收到图片消息:', { id: payload.id, content: payload.content, type: payload.type });
                 }
                 update_message(message, conversationId);
             } else if (data.type === "read_receipt_update") {
@@ -747,7 +628,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
                 }
             }
         } catch (err) {
-            console.log("接收消息出错", err);
         }
     }, [refreshConversations, selfId, update_message, username, setUserOnline]);
 
@@ -756,7 +636,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
         if (wsRef.current) wsRef.current.close();
         wsRef.current = new WebSocket(`wss://${BACKEND_URL}/ws/chat?token=${tokenValue}`);
         wsRef.current.onopen = () => {
-            console.log("WebSocket 已连接");
             const me = selfIdRef.current;
             if (me) setUserOnline(me, true);
         };
@@ -802,7 +681,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
                 const convs = await fetchHomeConversations(tokenValue);
                 setConversations(convs);
                 syncOnlineFromConversations(convs);
-                console.log("Loaded conversations (login):", convs.map(c => ({ id: c.id, messages: c.messages.length })));
             } finally {
                 setIsLoading(false);
             }
@@ -849,7 +727,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
                 const convs = await fetchHomeConversations(token);
                 setConversations(convs);
                 syncOnlineFromConversations(convs);
-                console.log("Loaded conversations (restore):", convs.map(c => ({ id: c.id, messages: c.messages.length })));
                 connectWebSocket(token);
             } catch (e) {
                 console.error("恢复会话或建立 WebSocket 失败", e);
@@ -1154,7 +1031,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
             if (end) params.append('end', end);
 
             const url = `https://${BACKEND_URL}/chat/history?${params.toString()}`;
-            console.debug('[history] request', { url, conversationId, query, sender, start, end });
 
             const response = await fetch(url, {
                 method: "GET",
@@ -1169,7 +1045,6 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
             }
 
             const data = await response.json();
-            console.debug('[history] response', data);
 
             // 后端有时返回 { code, info, messages }，有时返回 { code, info, data: { messages } }
             const rawMessages = Array.isArray(data?.data?.messages)

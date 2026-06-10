@@ -1,4 +1,4 @@
-# chat/urls.py
+# friend/urls.py
 from django.urls import path
 from .views import befriend, search, agree, list_friends, disagree, delete_friend, check_friendship
 from .views import create_friend_group, list_groups, add_to_group, remove_from_group, rename_group, delete_group
