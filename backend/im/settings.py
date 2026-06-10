@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -8,7 +9,14 @@ SECRET_KEY = os.environ.get(
     "django-insecure-change-me-in-production",
 )
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() in ("true", "1", "yes")
+
+if not DEBUG and SECRET_KEY.startswith("django-insecure"):
+    warnings.warn(
+        "DJANGO_SECRET_KEY is using the default insecure value in production! "
+        "Please set a proper secret key via the DJANGO_SECRET_KEY environment variable.",
+        stacklevel=1,
+    )
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
