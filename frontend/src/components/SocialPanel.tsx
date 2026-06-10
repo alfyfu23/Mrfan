@@ -293,8 +293,6 @@ export default function SocialPanel({ onGroupCreated }: SocialPanelProps) {
                 // 如果创建好友会话成功，处理响应
                 if (chatResponse.ok) {
                     const chatData = await chatResponse.json();
-                    // 可以在这里做一些操作，比如更新会话列表
-                    console.log('创建好友会话成功:', chatData);
                 } else {
                     const chatError = await chatResponse.json();
                     console.error('创建好友会话失败:', chatError);

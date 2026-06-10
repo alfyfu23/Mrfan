@@ -1,25 +1,25 @@
 from django.http import HttpRequest
-from django.shortcuts import render
 from utils.network import BAD_METHOD, request_failed, request_success
 from utils.jwt import parse_jwt_token
 from utils.tools import get_jwt_token, load_body
+from utils.notify import notify_conversation_event
 from django.contrib.auth import get_user_model
 from .models import Conversation, Member, Message, GroupAnnouncement, PinnedConversation, GroupInvitation
 from friend.models import Friendship
 from django.db.models import Q, Count, Max, F
-from django.db import models
 from django.db.transaction import atomic
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 from .presence import is_online
 import os
 import uuid
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 # TODO: 去除csrf禁用
 
@@ -51,21 +51,6 @@ def _find_private_between_v2(user1, user2):
     return conv
 
 
-def _notify_conversation_event(user_ids, event_name, conversation_id):
-    """向相关用户广播会话事件，提示前端刷新。"""
-    channel_layer = get_channel_layer()
-    if not channel_layer:
-        return
-    safe_ids = {uid for uid in user_ids if uid}
-    if not safe_ids:
-        return
-    payload = {
-        'type': 'conversation_event',
-        'event': event_name,
-        'conversation': conversation_id,
-    }
-    for uid in safe_ids:
-        async_to_sync(channel_layer.group_send)(f'user_{uid}', payload)
 
 @csrf_exempt
 def history(req: HttpRequest):
@@ -81,13 +66,13 @@ def history(req: HttpRequest):
         return BAD_METHOD
     # 获取参数
     c = req.GET.get('c')
-    print(f"<Info> (history) request for conversation={c}")
+    logger.info(f"(history) request for conversation={c}")
     # 提取 jwt token
     try:
         jwt_token = get_jwt_token(req)
     except Exception:
         info = "Authorization failed."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=3001,
             info=info,
@@ -97,7 +82,7 @@ def history(req: HttpRequest):
     user_id = parse_jwt_token(jwt_token)
     if not user_id:
         info = "Invalid JWT Token."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=3002,
             info=info,
@@ -111,18 +96,18 @@ def history(req: HttpRequest):
     conversation = Conversation.objects.filter(id=c).first()
     if not conversation:
         info = "Conversation not found."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=3003,
             info=info,
             status_code=404
         )
-    print(f"<Info> (history) conversation found id={conversation.id} type={conversation.type}")
+    logger.info(f"(history) conversation found id={conversation.id} type={conversation.type}")
     # 验证 user 属于该 conversation
     member = Member.objects.filter(user=user, conversation=conversation).first()
     if not member:
         info = "User not authorized to join this conversation."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=3004,
             info=info,
@@ -189,7 +174,7 @@ def history(req: HttpRequest):
             'is_read': member in msg.read_list.all(),
         })
 
-    print(f"<Info> (history) messages_count={len(messages)}")
+    logger.info(f"(history) messages_count={len(messages)}")
     return request_success(data={
         'messages': messages
     })
@@ -206,13 +191,13 @@ def create_friend_conversation(req: HttpRequest):
     """
     if req.method != 'POST':
         return BAD_METHOD
-    print("<Info> (create_friend_conversation) called")
+    logger.info("(create_friend_conversation) called")
     # 身份验证
     try:
         jwt_token = get_jwt_token(req)
     except Exception:
         info = "Authorization failed."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=3001,
             info=info,
@@ -221,7 +206,7 @@ def create_friend_conversation(req: HttpRequest):
     user_id = parse_jwt_token(jwt_token)
     if not user_id:
         info = "Invalid JWT Token."
-        print(info)
+        logger.info(info)
         return request_failed(
             code=3002,
             info=info,
@@ -256,7 +241,7 @@ def create_friend_conversation(req: HttpRequest):
     friendship = Friendship.objects.filter(
         Q(user_a=user, user_b=target) | Q(user_a=target, user_b=user)
     ).first()
-    print(f"<Info> (create_friend_conversation) friendship_exists={bool(friendship)}")
+    logger.info(f"(create_friend_conversation) friendship_exists={bool(friendship)}")
     if not friendship:
         return request_failed(
             code=2012,
@@ -286,10 +271,10 @@ def create_friend_conversation(req: HttpRequest):
                 role="member",
                 time=current_time
             )
-        print(f"<Info> (create_friend_conversation) created_conv_id={conv.id}")
+        logger.info(f"(create_friend_conversation) created_conv_id={conv.id}")
         created_new = True
     if created_new:
-        _notify_conversation_event([user.id, target.id], 'conversation_created', conv.id)
+        notify_conversation_event([user.id, target.id], 'conversation_created', conv.id)
     return request_success(
         data={"id": conv.id}
     )
@@ -334,7 +319,7 @@ def create_group(req: HttpRequest):
             Member.objects.create(conversation=conv, user=u, nickname=u.username, role='member', time=now)
 
     member_ids = [creator.id] + [u.id for u in users if u.id != creator.id]
-    _notify_conversation_event(member_ids, 'conversation_created', conv.id)
+    notify_conversation_event(member_ids, 'conversation_created', conv.id)
 
     return request_success({'id': conv.id})
 
@@ -466,7 +451,7 @@ def set_member_role(req: HttpRequest):
     target_member.role = role
     target_member.save()
     member_ids = list(conv.members.values_list('user_id', flat=True))
-    _notify_conversation_event(member_ids, 'conversation_event', conv_id)
+    notify_conversation_event(member_ids, 'conversation_event', conv_id)
     return request_success()
 
 @csrf_exempt
@@ -499,7 +484,7 @@ def transfer_owner(req: HttpRequest):
     nxt.role = 'owner'
     cur.save(); nxt.save()
     member_ids = list(conv.members.values_list('user_id', flat=True))
-    _notify_conversation_event(member_ids, 'conversation_event', conv_id)
+    notify_conversation_event(member_ids, 'conversation_event', conv_id)
     return request_success()
 
 @csrf_exempt
@@ -672,7 +657,7 @@ def disband_group(req: HttpRequest):
             review_comment='Group disbanded'
         )
 
-    _notify_conversation_event(member_ids, 'group_disbanded', conv_id)
+    notify_conversation_event(member_ids, 'group_disbanded', conv_id)
     return request_success()
 
 @csrf_exempt
@@ -701,7 +686,7 @@ def mark_read(req: HttpRequest):
     messages_to_mark = list(qs)
     for msg in messages_to_mark:
         msg.read_list.add(member)
-    print(f"<Info> (mark_read) marked {len(messages_to_mark)} messages as read for user={user_id} conv={conv_id} up_to={up_to_id}")
+    logger.info(f"(mark_read) marked {len(messages_to_mark)} messages as read for user={user_id} conv={conv_id} up_to={up_to_id}")
     return request_success()
 
 @csrf_exempt
@@ -1020,7 +1005,7 @@ def pin_conversation(req: HttpRequest):
         member.pinned = True
         member.save()
     
-    print(f"<Info> (pin_conversation) user={user_id} pinned conversation={conv_id}")
+    logger.info(f"(pin_conversation) user={user_id} pinned conversation={conv_id}")
     return request_success()
 
 @csrf_exempt
@@ -1070,7 +1055,7 @@ def unpin_conversation(req: HttpRequest):
         member.pinned = False
         member.save()
     
-    print(f"<Info> (unpin_conversation) user={user_id} unpinned conversation={conv_id}")
+    logger.info(f"(unpin_conversation) user={user_id} unpinned conversation={conv_id}")
     return request_success()
 
 @csrf_exempt
@@ -1095,7 +1080,7 @@ def get_pinned_conversations(req: HttpRequest):
     
     pinned_list = list(pinned_convs)
     
-    print(f"<Info> (get_pinned_conversations) user={user_id} pinned_count={len(pinned_list)}")
+    logger.info(f"(get_pinned_conversations) user={user_id} pinned_count={len(pinned_list)}")
     return request_success(data={"pinned": pinned_list})
 
 # 群成员邀请功能相关API
@@ -1138,8 +1123,6 @@ def invite_to_group(req: HttpRequest):
     conversation = Conversation.objects.filter(id=group_id, type='group').first()
     if not conversation:
         return request_failed(code=3003, info="Group not found.", status_code=404)
-    if not conversation.is_active:
-        return request_failed(code=2012, info="Conversation is inactive.", status_code=403)
     if not conversation.is_active:
         return request_failed(code=2012, info="Conversation is inactive.", status_code=403)
     
@@ -1188,7 +1171,7 @@ def invite_to_group(req: HttpRequest):
             message=message
         )
     
-    print(f"<Info> (invite_to_group) user={user_id} invited friend={friend_id} to group={group_id}")
+    logger.info(f"(invite_to_group) user={user_id} invited friend={friend_id} to group={group_id}")
     
     # 通知群主和管理员有新的邀请待审核
     admin_members = Member.objects.filter(
@@ -1198,7 +1181,7 @@ def invite_to_group(req: HttpRequest):
     
     admin_ids = [m.user_id for m in admin_members]
     if admin_ids:
-        _notify_conversation_event(admin_ids, 'group_invitation_pending', group_id)
+        notify_conversation_event(admin_ids, 'group_invitation_pending', group_id)
     
     return request_success({'id': invitation.id})
 
@@ -1352,11 +1335,11 @@ def review_group_invitation(req: HttpRequest):
             )
             
             # 通知被邀请者已加入群聊
-            _notify_conversation_event([invitation.invitee.id], 'conversation_created', invitation.conversation.id)
+            notify_conversation_event([invitation.invitee.id], 'conversation_created', invitation.conversation.id)
             
             # 通知群成员有新成员加入
             member_ids = list(invitation.conversation.members.values_list('user_id', flat=True))
-            _notify_conversation_event(member_ids, 'group_member_joined', invitation.conversation.id)
+            notify_conversation_event(member_ids, 'group_member_joined', invitation.conversation.id)
             
         else:  # reject
             invitation.status = 'rejected'
@@ -1366,7 +1349,7 @@ def review_group_invitation(req: HttpRequest):
         invitation.review_comment = comment
         invitation.save()
     
-    print(f"<Info> (review_group_invitation) user={user_id} {action}d invitation={invitation_id}")
+    logger.info(f"(review_group_invitation) user={user_id} {action}d invitation={invitation_id}")
     
     return request_success()
 

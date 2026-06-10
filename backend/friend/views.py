@@ -1,8 +1,8 @@
 from django.http import HttpRequest
-from django.shortcuts import render
 from utils.network import BAD_METHOD, request_failed, request_success
 from utils.tools import get_jwt_token
 from utils.jwt import parse_jwt_token
+from utils.notify import notify_conversation_event
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.db import transaction, IntegrityError
@@ -10,26 +10,10 @@ from django.utils import timezone
 from chat.models import Conversation, Member
 from .models import Friendship, Pending, FriendGroup
 from django.views.decorators.csrf import csrf_exempt
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 import json
+import logging
 
-
-def _notify_conversation_event(user_ids, event_name, conversation_id):
-    """向相关用户广播会话事件，提示前端刷新。"""
-    channel_layer = get_channel_layer()
-    if not channel_layer:
-        return
-    safe_ids = {uid for uid in user_ids if uid}
-    if not safe_ids:
-        return
-    payload = {
-        'type': 'conversation_event',
-        'event': event_name,
-        'conversation': conversation_id,
-    }
-    for uid in safe_ids:
-        async_to_sync(channel_layer.group_send)(f'user_{uid}', payload)
+logger = logging.getLogger(__name__)
 
 
 def _ensure_private_conversation(user_a, user_b):
@@ -137,7 +121,7 @@ def befriend(req: HttpRequest, id:int):
     friendship_exists = Friendship.objects.filter(
         Q(user_a=user_from, user_b=user_to) | Q(user_a=user_to, user_b=user_from)
     ).exists()
-    print(f"<Info> (befriend) friendship_exists={friendship_exists}")
+    logger.info(f"(befriend) friendship_exists={friendship_exists}")
     if friendship_exists:
         return request_failed(
             code=4002,
@@ -146,7 +130,7 @@ def befriend(req: HttpRequest, id:int):
         )
     # 检查是否已经发送了好友申请，对方尚未同意
     invited_exists = Pending.objects.filter(user_from=user_from, user_to=user_to).exists()
-    print(f"<Info> (befriend) invited_exists={invited_exists}")
+    logger.info(f"(befriend) invited_exists={invited_exists}")
     if invited_exists:
         return request_failed(
             code=4004,
@@ -155,7 +139,7 @@ def befriend(req: HttpRequest, id:int):
         )
     # 检查是否是: A已经给B发送了申请，现在B又给A发送申请
     rev_invited_exists = Pending.objects.filter(user_from=user_to, user_to=user_from).exists()
-    print(f"<Info> (befriend) rev_invited_exists={rev_invited_exists}")
+    logger.info(f"(befriend) rev_invited_exists={rev_invited_exists}")
     if rev_invited_exists:
         # 对方已经邀请过我，直接在事务中创建 friendship 并删除双方 pending
         conv = None
@@ -169,7 +153,7 @@ def befriend(req: HttpRequest, id:int):
                 conv, created = _ensure_private_conversation(user_from, user_to)
                 # 如果会话是新创建的，通知双方用户
                 if created and conv:
-                    _notify_conversation_event([user_from.id, user_to.id], 'conversation_created', conv.id)
+                    notify_conversation_event([user_from.id, user_to.id], 'conversation_created', conv.id)
         except IntegrityError:
             # 可能并发创建 friendship，仍要删除 pending
             Pending.objects.filter(
@@ -178,14 +162,14 @@ def befriend(req: HttpRequest, id:int):
             conv, created = _ensure_private_conversation(user_from, user_to)
             # 如果会话是新创建的，通知双方用户
             if created and conv:
-                _notify_conversation_event([user_from.id, user_to.id], 'conversation_created', conv.id)
+                notify_conversation_event([user_from.id, user_to.id], 'conversation_created', conv.id)
         return request_success(data={"conversation_id": conv.id if conv else None})
     # 创建Pending
     try:
         Pending.objects.create(user_from=user_from, user_to=user_to)
-        print(f"<Info> (befriend) created pending from={user_from.id} to={user_to.id}")
+        logger.info(f"(befriend) created pending from={user_from.id} to={user_to.id}")
     except IntegrityError:
-        print(f"<Info> (befriend) failed to create pending from={user_from.id} to={user_to.id}")
+        logger.info(f"(befriend) failed to create pending from={user_from.id} to={user_to.id}")
         return request_failed(code=5001, info="Failed to create pending.", status_code=500)
     return request_success()
 
@@ -215,7 +199,7 @@ def search(req: HttpRequest, username: str):
 
     exact_count = exact_qs.count()
     fuzzy_count = fuzzy_qs.count()
-    print(f"<Info> (search) exact_count={exact_count} fuzzy_count={fuzzy_count}")
+    logger.info(f"(search) exact_count={exact_count} fuzzy_count={fuzzy_count}")
 
     data = {
         "fuzzy": list(fuzzy_qs.values_list('id', flat=True)),
@@ -261,7 +245,7 @@ def agree(req: HttpRequest, id: int):
     
     # 检查是否确实有Pending invitation
     pending_exists = Pending.objects.filter(user_from=user_from, user_to=user_to).exists()
-    print(f"<Info> (agree) pending_exists={pending_exists}")
+    logger.info(f"(agree) pending_exists={pending_exists}")
     if not pending_exists:
         return request_failed(
             code=4005,
@@ -277,11 +261,11 @@ def agree(req: HttpRequest, id: int):
             conv, created = _ensure_private_conversation(user_from, user_to)
             # 如果会话是新创建的，通知双方用户
             if created and conv:
-                _notify_conversation_event([user_from.id, user_to.id], 'conversation_created', conv.id)
+                notify_conversation_event([user_from.id, user_to.id], 'conversation_created', conv.id)
     except IntegrityError:
         # 如果已经存在（并发创建），仍应删除 pending 并返回成功/已存在
         Pending.objects.filter(Q(user_from=user_from, user_to=user_to)|Q(user_from=user_to, user_to=user_from)).delete()
-        print(f"<Info> (agree) integrity error when creating friendship for {user_from.id} & {user_to.id}")
+        logger.info(f"(agree) integrity error when creating friendship for {user_from.id} & {user_to.id}")
         return request_failed(code=4002, info="Users are already friends.", status_code=400)
     return request_success(data={"conversation_id": conv.id if conv else None})
 
@@ -323,7 +307,7 @@ def disagree(req: HttpRequest, id: int):
         )
     # 检查是否确实有Pending invitation
     pending_exists = Pending.objects.filter(user_from=user_from, user_to=user_to).exists()
-    print(f"<Info> (disagree) pending_exists={pending_exists}")
+    logger.info(f"(disagree) pending_exists={pending_exists}")
     if not pending_exists:
         return request_failed(
             code=4005,
@@ -390,7 +374,7 @@ def delete_friend(req: HttpRequest, id: int):
             fg.friends.remove(user_a)
     except Exception as e:
         # 移除分组成员失败不影响删除好友的主流程，但记录错误
-        print(f"<Warning> failed to cleanup FriendGroup entries after deleting friendship: {e}")
+        logger.warning(f"failed to cleanup FriendGroup entries after deleting friendship: {e}")
 
     return request_success()
     
@@ -419,7 +403,7 @@ def list_friends(req: HttpRequest):
     pending_ids = [
         p.user_from.id for p in pendings
     ]
-    print(f"<Info> (list_friends) friends_count={friends.count()} pending_count={pendings.count()}")
+    logger.info(f"(list_friends) friends_count={friends.count()} pending_count={pendings.count()}")
     return request_success({
         "friends": friend_ids,
         "pending": pending_ids
@@ -796,7 +780,7 @@ def check_friendship(req: HttpRequest, id: int):
     friendship_exists = Friendship.objects.filter(
         Q(user_a=user, user_b=target) | Q(user_a=target, user_b=user)
     ).exists()
-    print(f"<Info> (check_friendship) friendship_exists={friendship_exists}")
+    logger.info(f"(check_friendship) friendship_exists={friendship_exists}")
     if friendship_exists:
         return request_success()
     else:
