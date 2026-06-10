@@ -206,7 +206,6 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
     useEffect(() => {
         if (!effectiveConvId) { setMessages([]); return; }
         const conv = conversations.find(item => item.id === effectiveConvId);
-        console.debug('[history] sync from conversations', { convId: effectiveConvId, convFound: !!conv, convMessages: conv?.messages?.length });
         setMessages(conv?.messages ?? []);
         if (prevConvIdRef.current !== effectiveConvId) {
             setShowSearch(false);
@@ -214,10 +213,6 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
             prevConvIdRef.current = effectiveConvId;
         }
     }, [effectiveConvId, conversations]);
-
-    useEffect(() => {
-        console.debug('[history] messages state updated', { length: messages.length, sample: messages.slice(0, 3) });
-    }, [messages]);
 
     // 滚动到底部
     useEffect(() => {
@@ -272,7 +267,6 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
         if (!effectiveConvId) return;
         setIsSearching(true);
         try {
-            console.debug('[history] search start', { convId: effectiveConvId, query: searchQuery, sender: searchSender, start: searchDateStart, end: searchDateEnd });
             const senderParam = typeof searchSender === 'number' ? searchSender : undefined;
             const results = await searchHistory(
                 effectiveConvId, 
@@ -289,7 +283,6 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
                     return !activeMemberIds.has(msg.sender);
                 })
                 : results;
-            console.debug('[history] search result', { count: filtered.length });
             setSearchResults(filtered);
         } finally {
             setIsSearching(false);
@@ -300,9 +293,7 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
         if (!effectiveConvId) return;
         setIsLoadingFullHistory(true);
         try {
-            console.debug('[history] load all start', { convId: effectiveConvId, existingMessages: messages.length });
             const history = await searchHistory(effectiveConvId);
-            console.debug('[history] load all result', { count: history.length });
             if (!history.length) {
                 toast.info('暂无更多历史记录');
                 return;
@@ -1243,7 +1234,6 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
                                 if (file.type.startsWith('image/')) messageType = 'image';
                                 else if (file.type.startsWith('audio/')) messageType = 'audio';
                                 else if (file.type.startsWith('video/')) messageType = 'video';
-                                console.log('上传文件类型:', file.type, '消息类型:', messageType, 'URL:', url);
                                 ws.send(JSON.stringify({ type: 'message', conversation: effectiveConvId, message: { type: messageType, content: url, reply_to: replyTo?.id } }));
                             } catch (err) { console.error('上传异常', err); } finally { if (fileInputRef.current) { fileInputRef.current.value = ''; } }
                         }} />

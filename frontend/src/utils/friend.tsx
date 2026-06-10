@@ -1,7 +1,7 @@
 import { User } from '@/types/User';
 import { BACKEND_URL } from '@/constant/strings';
 
-export function get_frineds_api(token: string) {
+export function get_friends_api(token: string) {
     /**
      * 获得某个用户的好友列表
      * 
@@ -22,10 +22,8 @@ export function get_frineds_api(token: string) {
     }).then(response => {
         return response.json();
     }).then(data => {
-        console.log(data);
         friend_ids = data['friends'];
         pending_ids = data['pending'];
-        console.log(`get ${friend_ids.length} friends`);
         return [friend_ids, pending_ids];
     }).catch(err => {
         console.error("请求出错:", err)

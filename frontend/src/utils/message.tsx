@@ -35,17 +35,14 @@ export function get_conversation_id(token: string, to: number) {
     }).then(response => response.json() as Promise<ConversationIdResponse>)
     .then(data => {
         check_for_error(data);
-        console.log("会话ID请求结果", data);
         const conv_id = typeof data.id === "number" ? data.id : null;
         return conv_id;
     }).catch(err => {
-        console.log("请求会话id出错: ", err);
         return null;
     })
 }
 
 export function get_history(token: string, conv_id: number): Promise<Message[]> {
-    console.log("进入请求历史消息");
     return fetch(`https://${BACKEND_URL}/message/history?c=${conv_id}`, {
         method: "GET",
         headers: {
@@ -75,7 +72,6 @@ export function get_history(token: string, conv_id: number): Promise<Message[]> 
         });
         return messages;
     }).catch(err => {
-        console.log("请求历史消息出错: ", err);
         return [];
     })
 }
@@ -120,7 +116,6 @@ export async function getGroupInfo(token: string, convId: number): Promise<Group
             isGroup: true
         };
     } catch (err) {
-        console.log("获取群信息出错: ", err);
         return null;
     }
 }
@@ -149,7 +144,6 @@ export async function updateGroupInfo(
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("更新群信息出错: ", err);
         return false;
     }
 }
@@ -176,7 +170,6 @@ export async function setGroupAnnouncement(
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("设置群公告出错: ", err);
         return false;
     }
 }
@@ -214,7 +207,6 @@ export async function getGroupAnnouncements(
         check_for_error(data);
         return Array.isArray(data.announcements) ? data.announcements : [];
     } catch (err) {
-        console.log("获取历史群公告出错: ", err);
         return [];
     }
 }
@@ -226,7 +218,6 @@ export async function setMemberRole(
     role: 'admin' | 'member'
 ): Promise<boolean> {
     try {
-        console.log('调用 setMemberRole API:', { convId, userId, role });
         const response = await fetch(`https://${BACKEND_URL}/chat/group/role`, {
             method: "POST",
             headers: {
@@ -241,11 +232,9 @@ export async function setMemberRole(
             })
         });
         const data = await response.json();
-        console.log('setMemberRole API 响应:', data);
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("设置成员角色出错: ", err);
         return false;
     }
 }
@@ -272,7 +261,6 @@ export async function transferOwner(
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("转让群主出错: ", err);
         return false;
     }
 }
@@ -299,7 +287,6 @@ export async function removeMember(
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("移除成员出错: ", err);
         return false;
     }
 }
@@ -321,7 +308,6 @@ export async function exitGroup(token: string, convId: number): Promise<boolean>
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("退出群聊出错: ", err);
         return false;
     }
 }
@@ -343,7 +329,6 @@ export async function disbandGroup(token: string, convId: number): Promise<boole
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("解散群聊出错: ", err);
         return false;
     }
 }
@@ -370,7 +355,6 @@ export async function setGroupNickname(
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("设置群昵称出错: ", err);
         return false;
     }
 }
@@ -393,7 +377,6 @@ export async function pinConversation(token: string, convId: number): Promise<bo
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("置顶会话出错: ", err);
         return false;
     }
 }
@@ -415,7 +398,6 @@ export async function unpinConversation(token: string, convId: number): Promise<
         check_for_error(data);
         return true;
     } catch (err) {
-        console.log("取消置顶会话出错: ", err);
         return false;
     }
 }
@@ -433,7 +415,6 @@ export async function getPinnedConversations(token: string): Promise<number[]> {
         check_for_error(data);
         return Array.isArray(data.pinned) ? data.pinned : [];
     } catch (err) {
-        console.log("获取置顶会话列表出错: ", err);
         return [];
     }
 }
@@ -502,7 +483,6 @@ export async function inviteToGroup(
             };
         }
     } catch (err) {
-        console.log("邀请好友出错: ", err);
         return {
             success: false,
             error: '网络错误，请重试'
@@ -537,7 +517,6 @@ export async function getGroupInvitations(
             return [];
         }
     } catch (err) {
-        console.log("获取群聊邀请列表出错: ", err);
         return [];
     }
 }
@@ -573,7 +552,6 @@ export async function reviewGroupInvitation(
             };
         }
     } catch (err) {
-        console.log("审核群聊邀请出错: ", err);
         return {
             success: false,
             error: '网络错误，请重试'
@@ -607,7 +585,6 @@ export async function getUserInvitations(
             return [];
         }
     } catch (err) {
-        console.log("获取用户邀请列表出错: ", err);
         return [];
     }
 }

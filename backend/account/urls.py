@@ -1,4 +1,4 @@
-# accounts/urls.py
+# account/urls.py
 from django.urls import path
 from .views import login, register, get_info, edit_info, delete_account
 

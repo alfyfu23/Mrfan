@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { BACKEND_URL } from '@/constant/strings';
 import { useUserContext } from '@/context/UserContext';
 import { inviteToGroup } from '@/utils/message';
-import { get_frineds_api, get_friend_info } from '@/utils/friend';
+import { get_friends_api, get_friend_info } from '@/utils/friend';
 import Avatar from './Avatar';
 
 interface Friend {
@@ -40,7 +40,7 @@ export default function InviteFriendModal({ isOpen, onClose, groupId, groupName,
         const loadFriends = async () => {
             setLoading(true);
             try {
-                const [friendIds] = await get_frineds_api(token);
+                const [friendIds] = await get_friends_api(token);
                 const friendDetails: Friend[] = [];
                 
                 for (const id of friendIds) {
