@@ -5,7 +5,6 @@ import { BACKEND_URL } from "@/constant/strings";
 import { useUserContext } from "@/context/UserContext";
 import { User } from "@/types/User";
 import SearchBar, { SearchBarActionKey } from "./SearchBar";
-import Avatar from "./Avatar";
 
 interface SocialPanelProps {
     onGroupCreated?: (conversationId: number) => void;
@@ -210,27 +209,6 @@ export default function SocialPanel({ onGroupCreated }: SocialPanelProps) {
         }
     };
 
-    const addFriendToGroupDirect = async (groupId: number, friendId: number) => {
-        if (groupId === 0) return alert('不能将好友加入系统分组「未分组」。请创建或选择一个有效分组。');
-        try {
-            const r = await fetch(`https://${BACKEND_URL}/friend/group/add`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ group_id: groupId, friend_id: friendId })
-            });
-            const d = await r.json();
-            if (d.code === 0) {
-                await fetchGroups();
-                await fetchList();
-            } else {
-                alert(d.info || '添加失败');
-            }
-        } catch (err) {
-            console.error('添加分组成员异常', err);
-            alert('添加失败');
-        }
-    };
-
     async function doSearch() {
         if (!token || !query.trim()) { setSearchExact([]); setSearchFuzzy([]); return; }
         try {
@@ -292,7 +270,7 @@ export default function SocialPanel({ onGroupCreated }: SocialPanelProps) {
 
                 // 如果创建好友会话成功，处理响应
                 if (chatResponse.ok) {
-                    const chatData = await chatResponse.json();
+                    await chatResponse.json();
                 } else {
                     const chatError = await chatResponse.json();
                     console.error('创建好友会话失败:', chatError);

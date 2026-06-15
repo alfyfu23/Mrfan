@@ -9,7 +9,6 @@ import ChatBox from "./ChatRoom";
 import SocialPanel from "./SocialPanel";
 import SettingsPanel from "./SettingsPanel";
 import UserTooltip from "./UserTooltip";
-import Avatar from "./Avatar";
 import chatIcon from "../../asset/chat.png";
 import friendIcon from "../../asset/friend.jpg";
 import settingIcon from "../../asset/setting.jpg";

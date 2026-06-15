@@ -20,7 +20,7 @@ import { BACKEND_URL } from '../constant/strings'
 import { toast } from "react-toastify";
 import { Conversation, Message } from "@/types/Message";
 import { User } from "@/types/User";
-import { getPinnedConversations, pinConversation as pinConversationLocal, unpinConversation as unpinConversationLocal, isConversationPinned, getConversationPinOrder, savePinnedConversations } from "@/utils/pinStorage";
+import { pinConversation as pinConversationLocal, unpinConversation as unpinConversationLocal, getConversationPinOrder, savePinnedConversations } from "@/utils/pinStorage";
 
 type RawMember = {
     id: number;
@@ -627,7 +627,7 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
                     toast.error(errorMessage);
                 }
             }
-        } catch (err) {
+        } catch {
         }
     }, [refreshConversations, selfId, update_message, username, setUserOnline]);
 

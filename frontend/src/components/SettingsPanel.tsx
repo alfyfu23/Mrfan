@@ -171,16 +171,6 @@ export default function SettingsPanel() {
     }
     if (loading) return <div style={{ padding: 20 }}>加载中…</div>;
 
-    const passwordValidation = validatePasswordStrength(newPwd);
-    // 移除按钮禁用逻辑，改为在点击时进行验证
-    // const canSubmitPassword = Boolean(
-    //     oldPwd &&
-    //     newPwd &&
-    //     confirmNewPwd &&
-    //     newPwd === confirmNewPwd &&
-    //     passwordValidation.isValid
-    // );
-
     const fieldWrap: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 };
     const labelStyle: React.CSSProperties = { fontSize: 13, color: '#6b7280' };
     const inputStyle: React.CSSProperties = {

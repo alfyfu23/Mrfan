@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { BACKEND_URL } from '@/constant/strings';
 import { useUserContext } from '@/context/UserContext';
 import { getGroupInvitations, reviewGroupInvitation, GroupInvitation } from '@/utils/message';
 

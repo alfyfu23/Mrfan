@@ -6,7 +6,6 @@ import { useUserContext } from '@/context/UserContext';
 import { validatePasswordStrength, getPasswordStrengthDescription, getPasswordStrengthColor, PasswordValidationResult } from '@/utils/passwordValidator';
 import { validateUsername, getUsernameRequirements, UsernameValidationResult } from '@/utils/usernameValidator';
 import { toast } from 'react-toastify';
-import { BACKEND_URL } from '@/constant/strings';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');

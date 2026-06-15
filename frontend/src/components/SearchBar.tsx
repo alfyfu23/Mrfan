@@ -27,11 +27,6 @@ interface SearchBarProps {
     onGroupCreated?: (conversationId: number) => void;
 }
 
-const defaultActions: SearchBarAction[] = [
-    { key: "add-friend", label: "添加好友" },
-    { key: "start-group", label: "发起群聊" },
-];
-
 export default function SearchBar({
     value,
     placeholder = "搜索...",

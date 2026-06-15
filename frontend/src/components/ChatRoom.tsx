@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { StaticImageData } from "next/image";
 import type { Member } from "@/types/User";
 import { Message } from "@/types/Message";
 import { useUserContext } from "@/context/UserContext";
@@ -9,15 +8,7 @@ import { toast } from "react-toastify";
 import GroupInfoPanel from './GroupInfoPanel';
 import UserTooltip from './UserTooltip';
 import Avatar from './Avatar';
-import defaultAvatar from '@/asset/default_user.jpg';
-import { getThemedColor, getSecondaryTextColor } from '@/utils/themeDetector';
-
-const resolveAssetSrc = (asset: string | StaticImageData): string => {
-    if (asset && typeof asset === 'object' && 'src' in asset) {
-        return (asset as { src: string }).src;
-    }
-    return asset as string;
-};
+import { getSecondaryTextColor } from '@/utils/themeDetector';
 
 const isImageLike = (type?: string, text?: string) => {
     if (type === 'image') return true;
@@ -191,7 +182,6 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
         });
         return map;
     }, [currentConv]);
-    const defaultAvatarSrc = resolveAssetSrc(defaultAvatar);
     const canSendCurrentConversation = React.useMemo(() => {
         if (!currentConv) return false;
         if (!currentConv.isGroup) return true;
@@ -617,7 +607,7 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
         const handleMouseMove = (e: any) => {
             if (!isResizing || !inputAreaRef.current) return;
             
-            const rect = inputAreaRef.current.getBoundingClientRect();
+            inputAreaRef.current.getBoundingClientRect();
             const newHeight = Math.max(60, Math.min(300, window.innerHeight - e.clientY));
             setInputHeight(newHeight);
         };
@@ -2287,7 +2277,7 @@ export default function ChatBox({ conversationId }: { conversationId: number | n
     );
 }
 
-function ReadReceipt({ total, readBy, members, senderId }: { total: number, readBy: number[], members: Member[], senderId: number }) {
+function ReadReceipt({ total: _total, readBy, members, senderId }: { total: number, readBy: number[], members: Member[], senderId: number }) {
     // 排除发送者，只计算其他成员
     const otherMembers = members.filter(m => m.id !== senderId);
     const otherMembersCount = otherMembers.length;
@@ -2296,7 +2286,7 @@ function ReadReceipt({ total, readBy, members, senderId }: { total: number, read
     const percent = otherMembersCount > 0 ? (readCount / otherMembersCount) : 0;
     const dash = `${percent * 100} ${100 - percent * 100}`;
     const [hover, setHover] = React.useState(false);
-    const [position, setPosition] = React.useState<'top' | 'bottom'>('bottom');
+    const [_position, setPosition] = React.useState<'top' | 'bottom'>('bottom');
     const [tooltipStyle, setTooltipStyle] = React.useState<React.CSSProperties>({});
     const readReceiptRef = React.useRef<HTMLDivElement>(null);
     
@@ -2304,7 +2294,7 @@ function ReadReceipt({ total, readBy, members, senderId }: { total: number, read
         if (hover && readReceiptRef.current) {
             const rect = readReceiptRef.current.getBoundingClientRect();
             const viewportHeight = window.innerHeight;
-            const viewportWidth = window.innerWidth;
+            const _viewportWidth = window.innerWidth;
             const tooltipWidth = 220; // 预估的tooltip宽度
             
             // 动态计算tooltip高度（基于成员数量）
