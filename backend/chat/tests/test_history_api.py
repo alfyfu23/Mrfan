@@ -1,8 +1,11 @@
 import json
+
 import pytest
-from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.urls import reverse
+
 from chat.models import Conversation, Member, Message
+
 
 @pytest.mark.django_db
 def test_history_api_posts_and_returns(client):
@@ -131,7 +134,7 @@ def test_history_api_posts_and_returns(client):
     assert r.status_code in (500, 401, 403)
 
     # 会话不存在
-    r = client.get(reverse('history') + f'?c=999999', HTTP_AUTHORIZATION=f'Bearer {jwt_token2}')
+    r = client.get(reverse('history') + '?c=999999', HTTP_AUTHORIZATION=f'Bearer {jwt_token2}')
     assert r.status_code in (404, 400)
 
     # 非成员访问

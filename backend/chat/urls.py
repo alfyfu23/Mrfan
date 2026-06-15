@@ -1,37 +1,37 @@
 # chat/urls.py
 from django.urls import path
+
 from .views import (
-    history,
-    create_friend_conversation,
-    home,
-    create_group,
-    update_group_info,
-    # new
-    
-    set_group_nickname,
-    set_member_role,
-    transfer_owner,
     announce,
-    get_announcements,
-    group_info,
-    remove_member,
-    exit_group,
-    disband_group,
-    mark_read,
-    edit_message,
-    recall_message,
+    create_friend_conversation,
+    create_group,
     delete_message,
-    set_mute_pin,
-    upload,
-    # 置顶功能
-    pin_conversation,
-    unpin_conversation,
+    disband_group,
+    edit_message,
+    exit_group,
+    get_announcements,
     get_pinned_conversations,
+    get_user_invitations,
+    group_info,
+    history,
+    home,
     # 群成员邀请功能
     invite_to_group,
     list_group_invitations,
+    mark_read,
+    # 置顶功能
+    pin_conversation,
+    recall_message,
+    remove_member,
     review_group_invitation,
-    get_user_invitations,
+    # new
+    set_group_nickname,
+    set_member_role,
+    set_mute_pin,
+    transfer_owner,
+    unpin_conversation,
+    update_group_info,
+    upload,
 )
 
 urlpatterns = [

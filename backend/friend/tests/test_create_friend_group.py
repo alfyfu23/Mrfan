@@ -1,10 +1,13 @@
 import json
+
 import pytest
-from friend.models import FriendGroup
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
+from friend.models import FriendGroup
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
+
 User = get_user_model()
 
 @pytest.mark.django_db
@@ -16,7 +19,7 @@ def test_create_friend_group_bad_method(client):
 @pytest.mark.django_db
 def test_create_friend_group_invalid_jwt(client):
     """❌ JWT无效"""
-    user = User.objects.create_user(username="testuser", password="test123456")
+    User.objects.create_user(username="testuser", password="test123456")
     resp = client.post(
         reverse("create_friend_group"),
         data=json.dumps({"name": "New Group"}),
@@ -56,10 +59,10 @@ def test_create_friend_group_name_exists(client):
     """❌ 创建分组时同名分组已存在"""
     user = User.objects.create_user(username="testuser", password="test123456")
     token = generate_jwt_token(username="testuser", id=user.id)
-    
+
     # 创建一个分组
     FriendGroup.objects.create(name="Existing Group", user=user)
-    
+
     resp = client.post(
         reverse("create_friend_group"),
         data=json.dumps({"name": "Existing Group"}),  # 已存在的组名
@@ -73,19 +76,19 @@ def test_create_friend_group_success(client):
     """✅ 成功创建分组"""
     user = User.objects.create_user(username="testuser", password="test123456")
     token = generate_jwt_token(username="testuser", id=user.id)
-    
+
     resp = client.post(
         reverse("create_friend_group"),
         data=json.dumps({"name": "New Group"}),
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {token}"
     )
-    
+
     response_data = resp.json()
     assert response_data.get("code") == 0, f"Expected 'code' to be 0, but got {response_data.get('code')}"
     assert "id" in response_data
     group_id = response_data["id"]
-    
+
     # 验证分组是否被创建
     group = FriendGroup.objects.get(id=group_id)
     assert group.name == "New Group"

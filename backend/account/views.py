@@ -1,16 +1,17 @@
-from django.http import HttpRequest
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
-from account.models import validate_username, validate_password_strength
-from utils.network import BAD_METHOD, request_failed, request_success
-from utils.jwt import generate_jwt_token, parse_jwt_token
-from utils.tools import get_jwt_token
-from django.contrib.auth import authenticate 
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.hashers import check_password
-from django.db import transaction
-import json 
+import json
 import logging
+
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.hashers import check_password
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.http import HttpRequest
+from django.views.decorators.csrf import csrf_exempt
+
+from account.models import validate_password_strength, validate_username
+from utils.jwt import generate_jwt_token, parse_jwt_token
+from utils.network import BAD_METHOD, request_failed, request_success
+from utils.tools import get_jwt_token
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ def _generate_deactivated_username(user_id: int) -> str:
         suffix += 1
         candidate = f"{base}_{suffix}"[:30]
     return candidate
-    
+
 @csrf_exempt  # 调试阶段禁用csrf
 def register(req: HttpRequest):
     # 方法不对
@@ -82,7 +83,7 @@ def register(req: HttpRequest):
     # 返回
     jwt_token = generate_jwt_token(username=username, id=user.id)
     return request_success(data={'jwt_token': jwt_token, 'code': 0})
-    
+
 @csrf_exempt # 调试阶段禁用csrf
 def login(req: HttpRequest):
     if req.method != 'POST':
@@ -129,7 +130,7 @@ def login(req: HttpRequest):
             info=info,
             status_code=404
         )
-    
+
     user = authenticate(username=username, password=password)
     if user is not None:
         # 验证成功，签发jwt token
@@ -149,7 +150,7 @@ def login(req: HttpRequest):
             status_code=400
         )
 
-@csrf_exempt # 调试阶段禁用csrf       
+@csrf_exempt # 调试阶段禁用csrf
 def get_info(req: HttpRequest):
     if req.method != 'GET':
         return BAD_METHOD
@@ -337,7 +338,7 @@ def delete_account(req: HttpRequest):
     # ---- 如果用户是群主，自动将群标记为不可用（保留消息记录） ----
     try:
         from chat.models import Member
-        from chat.views import _notify_conversation_event
+        from utils.notify import notify_conversation_event
 
         owner_memberships = (
             Member.objects
@@ -349,7 +350,7 @@ def delete_account(req: HttpRequest):
             conv.is_active = False
             conv.save(update_fields=["is_active"])
             member_ids = list(conv.members.values_list('user_id', flat=True))
-            _notify_conversation_event(member_ids, 'group_disbanded', conv.id)
+            notify_conversation_event(member_ids, 'group_disbanded', conv.id)
     except Exception as e:
         # 不阻断注销流程，但记录异常便于排查
         logger.warning(f"failed to mark owned groups inactive for user {user.id}: {e}")

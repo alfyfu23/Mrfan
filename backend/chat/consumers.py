@@ -18,17 +18,18 @@ WebSocket 消费者 (ChatConsumer)
 """
 
 import json
-from channels.generic.websocket import AsyncWebsocketConsumer
-from .models import Conversation, Member, Message
-from .presence import mark_online, mark_offline
-from django.contrib.auth import get_user_model
-from asgiref.sync import sync_to_async
-from django.utils import timezone
 import logging
-from django.core.exceptions import ObjectDoesNotExist
-from utils.jwt import parse_jwt_token
 from urllib.parse import parse_qs
-from django.db.models import Q
+
+from asgiref.sync import sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
+
+from utils.jwt import parse_jwt_token
+
+from .models import Conversation, Member, Message
+from .presence import mark_offline, mark_online
 
 """ 这里我把 用户-用户 和 用户-群组 视为同一种，均使用"会话"来包装 """
 
@@ -158,7 +159,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         message_type = data.get('type')
-        
+
         if message_type == 'message':
             await self.handle_message(data)
         elif message_type == 'read_receipt':
@@ -188,7 +189,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             is_friend = await self.check_friendship_in_private_chat(self.user_id, int(conversation_id))
             if not is_friend:
                 await self.send(text_data=json.dumps({
-                    'type': 'error', 
+                    'type': 'error',
                     'error': 'not_friends',
                     'message': '你们已经不是好友，无法发送消息'
                 }))
@@ -316,7 +317,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            
+
             user = await sync_to_async(User.objects.get)(id=user_id)
             if not user.is_active:
                 await self.send(text_data=json.dumps({'type': 'error', 'error': 'user_deactivated'}))
@@ -326,7 +327,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({'type': 'error', 'error': 'conversation_inactive'}))
                 return False
             member = await sync_to_async(Member.objects.filter(user=user, conversation=conversation).first)()
-            
+
             if not member:
                 self.logger.warning(f"User {user_id} is not a member of conversation {conversation_id}")
                 return False
@@ -344,7 +345,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message.content = content
             message.is_edited = True
             await sync_to_async(message.save)()
-            
+
             self.logger.info(f"User {user_id} edited message {message_id} in conversation {conversation_id}")
             return True
         except Exception as e:
@@ -356,7 +357,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            
+
             user = await sync_to_async(User.objects.get)(id=user_id)
             if not user.is_active:
                 await self.send(text_data=json.dumps({'type': 'error', 'error': 'user_deactivated'}))
@@ -366,7 +367,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.send(text_data=json.dumps({'type': 'error', 'error': 'conversation_inactive'}))
                 return False
             member = await sync_to_async(Member.objects.filter(user=user, conversation=conversation).first)()
-            
+
             if not member:
                 self.logger.warning(f"User {user_id} is not a member of conversation {conversation_id}")
                 return False
@@ -384,7 +385,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message.valid = False
             message.content = f"{member.nickname or user.username}撤回了一条消息"
             await sync_to_async(message.save)()
-            
+
             self.logger.info(f"User {user_id} recalled message {message_id} in conversation {conversation_id}")
             return True
         except Exception as e:
@@ -396,14 +397,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            
+
             user = await sync_to_async(User.objects.get)(id=user_id)
             if not user.is_active:
                 await self.send(text_data=json.dumps({'type': 'error', 'error': 'user_deactivated'}))
                 return False
             conversation = await sync_to_async(Conversation.objects.get)(id=conversation_id)
             member = await sync_to_async(Member.objects.filter(user=user, conversation=conversation).first)()
-            
+
             if not member:
                 self.logger.warning(f"User {user_id} is not a member of conversation {conversation_id}")
                 return False
@@ -415,7 +416,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             # 添加用户到已读列表
             await sync_to_async(message.read_list.add)(member)
-            
+
             self.logger.info(f"User {user_id} marked message {message_id} as read in conversation {conversation_id}")
             return True
         except Exception as e:
@@ -525,11 +526,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            
+
             user = await sync_to_async(User.objects.get)(id=user_id)
             conversation = await sync_to_async(Conversation.objects.get)(id=conversation_id)
             member = await sync_to_async(Member.objects.filter(user=user, conversation=conversation).first)()
-            
+
             return member is not None
         except Exception as e:
             self.logger.exception(f"Error checking conversation membership: {e}")
@@ -547,21 +548,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def check_friendship_in_private_chat(self, user_id, conversation_id):
         """检查私聊中的两个用户是否仍为好友关系"""
         try:
-            from django.contrib.auth import get_user_model
-            from friend.models import Friendship
             from django.db.models import Q
-            User = get_user_model()
-            
+
+            from friend.models import Friendship
+
             # 获取私聊会话的两个成员
             conversation = await sync_to_async(Conversation.objects.get)(id=conversation_id)
             members = await sync_to_async(list)(conversation.members.all().values_list('user_id', flat=True))
-            
+
             if len(members) != 2:
                 return False
-                
+
             # 获取对方用户ID
             other_user_id = members[0] if members[1] == user_id else members[1]
-            
+
             # 检查是否仍为好友（双向检查）
             return await sync_to_async(Friendship.objects.filter(
                 Q(user_a_id=user_id, user_b_id=other_user_id) |
@@ -639,7 +639,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
             # 自动将发送者添加到已读列表
             await sync_to_async(msg.read_list.add)(member)
-            
+
             # 重新获取消息，包含关联的reply_to数据
             msg = await sync_to_async(Message.objects.select_related('reply_to__member__user').get)(id=msg.id)
         except Exception:
@@ -658,7 +658,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'text': msg.reply_to.content,
                 'type': msg.reply_to.type,
             }
-        
+
         created = {
             'conversation': conversation.id,
             'message': {

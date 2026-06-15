@@ -1,7 +1,9 @@
 import json
+
 import pytest
 from django.test import Client
 from django.urls import reverse
+
 
 @pytest.mark.django_db
 def test_add_friend_flow(client: Client):
@@ -19,87 +21,87 @@ def test_add_friend_flow(client: Client):
         'password': 'test123456'
     }), content_type='application/json')
     assert response.status_code == 200
-    
+
     jwt_token = response.json()['jwt_token']
-    
+
     # user 2 注册
-    
+
     response = client.post(reverse('register'), data=json.dumps({
         'username': 'test_user_2',
         'password': 'test123456'
     }), content_type='application/json')
-    
+
     jwt_token2 = response.json()['jwt_token']
 
-    
-    # user 1 搜索 user 2 
-    
+
+    # user 1 搜索 user 2
+
     search_result = client.get(
         reverse("search", args=["test_user_2"]),
         content_type='application/json',
         HTTP_AUTHORIZATION=f'Bearer {jwt_token}'
     ).json()
-    
+
     assert 'exact' in search_result and len(search_result['exact']) > 0
-    
+
     target_id = search_result['exact'][0]
-    
+
     # user 1 申请添加 use 2 为好友
-    
+
     response = client.post(
         reverse('befriend', args=[target_id]),
         content_type='application/json',
         HTTP_AUTHORIZATION=f'Bearer {jwt_token}'
     )
-    
+
     assert response.status_code == 200
 
     # user 2 查看好友申请
-    
+
     response = client.get(
         reverse("list_friends"),
         content_type='application/json',
         HTTP_AUTHORIZATION=f'Bearer {jwt_token2}'
     )
-    
+
     assert response.status_code == 200
     assert len(response.json()['pending']) > 0
     assert len(response.json()['friends']) == 0
-    
+
     source_id = response.json()['pending'][0]
-    
+
     # user 2 同意
-    
+
     client.post(
         reverse('agree', args=[source_id]),
         content_type='application/json',
         HTTP_AUTHORIZATION=f'Bearer {jwt_token2}'
     )
-    
+
     # user 2 检查好友列表
-    
+
     response = client.get(
         reverse("list_friends"),
         content_type='application/json',
         HTTP_AUTHORIZATION=f'Bearer {jwt_token2}'
     )
-    
+
     assert response.status_code == 200
     assert len(response.json()['pending']) == 0
     assert len(response.json()['friends']) > 0
-    
+
     # user 1 检查好友列表
-    
+
     response = client.get(
         reverse("list_friends"),
         content_type='application/json',
         HTTP_AUTHORIZATION=f'Bearer {jwt_token}'
     )
-    
+
     assert response.status_code == 200
     assert len(response.json()['pending']) == 0
     assert len(response.json()['friends']) > 0
-    
+
     response = client.post(reverse('register'), data=json.dumps({
         'username': 'test_user_3',
         'password': 'test123456'

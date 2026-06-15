@@ -1,23 +1,26 @@
-from django.http import HttpRequest
-from utils.network import BAD_METHOD, request_failed, request_success
-from utils.jwt import parse_jwt_token
-from utils.tools import get_jwt_token, load_body
-from utils.notify import notify_conversation_event
-from django.contrib.auth import get_user_model
-from .models import Conversation, Member, Message, GroupAnnouncement, PinnedConversation, GroupInvitation
-from friend.models import Friendship
-from django.db.models import Q, Count, Max, F
-from django.db.transaction import atomic
-from django.views.decorators.csrf import csrf_exempt
-from django.utils import timezone
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-from django.conf import settings
-from .presence import is_online
+import logging
 import os
 import uuid
 from pathlib import Path
-import logging
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.db.models import Count, F, Max, Q
+from django.db.transaction import atomic
+from django.http import HttpRequest
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+
+from friend.models import Friendship
+from utils.jwt import parse_jwt_token
+from utils.network import BAD_METHOD, request_failed, request_success
+from utils.notify import notify_conversation_event
+from utils.tools import get_jwt_token, load_body
+
+from .models import Conversation, GroupAnnouncement, GroupInvitation, Member, Message, PinnedConversation
+from .presence import is_online
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +235,7 @@ def create_friend_conversation(req: HttpRequest):
     target = User.objects.filter(id=target_id).first()
     if not target:
         return request_failed(code=2004, info="Target user does not exist.", status_code=404)
-    
+
     # 检查目标用户是否已注销
     if not target.is_active:
         return request_failed(code=2006, info="Cannot chat with deactivated user.", status_code=400)
@@ -258,14 +261,14 @@ def create_friend_conversation(req: HttpRequest):
             current_time = timezone.now()
             # 创建两个 Member 记录
             Member.objects.create(
-                conversation=conv, 
+                conversation=conv,
                 user=user,
                 nickname=user.username,
                 role="member",
                 time=current_time
             )
             Member.objects.create(
-                conversation=conv, 
+                conversation=conv,
                 user=target,
                 nickname=target.username,
                 role="member",
@@ -377,10 +380,10 @@ def group_info(req: HttpRequest):
         return request_failed(code=3004, info="Member not found.", status_code=404)
     last_announce = conv.announcements.order_by('-created_at').first()
     members_qs = conv.members.select_related('user')
-    members = [{ 
-        'id': m.user_id, 
-        'nickname': m.nickname, 
-        'avatar': getattr(m.user, 'avatar', ''), 
+    members = [{
+        'id': m.user_id,
+        'nickname': m.nickname,
+        'avatar': getattr(m.user, 'avatar', ''),
         'role': m.role,
         'is_active': m.user.is_active,
         'display_username': getattr(m.user, 'display_username', m.user.username),
@@ -534,10 +537,10 @@ def get_announcements(req: HttpRequest):
     member = Member.objects.filter(conversation=conv, user_id=user_id).first()
     if not member:
         return request_failed(code=3004, info="Not a member of this group.", status_code=403)
-    
+
     # 获取公告列表，按时间倒序排列
     announcements_qs = conv.announcements.select_related('author__user').order_by('-created_at')
-    
+
     # 处理分页
     if offset:
         try:
@@ -546,7 +549,7 @@ def get_announcements(req: HttpRequest):
                 announcements_qs = announcements_qs[offset_val:]
         except ValueError:
             pass
-    
+
     if limit:
         try:
             limit_val = int(limit)
@@ -554,7 +557,7 @@ def get_announcements(req: HttpRequest):
                 announcements_qs = announcements_qs[:limit_val]
         except ValueError:
             pass
-    
+
     announcements = []
     for announce in announcements_qs:
         announcements.append({
@@ -565,7 +568,7 @@ def get_announcements(req: HttpRequest):
             'author_nickname': (announce.author.nickname or announce.author.user.username) if announce.author else '',
             'created_at': announce.created_at.isoformat(),
         })
-    
+
     return request_success({
         'announcements': announcements
     })
@@ -813,7 +816,7 @@ def upload(req: HttpRequest):
     filename = default_storage.save(os.path.join('uploads', safe_name), ContentFile(f.read()))
     url = settings.MEDIA_URL + filename
     return request_success({'url': url})
-    
+
 @csrf_exempt
 def home(req: HttpRequest):
     """
@@ -885,7 +888,7 @@ def home(req: HttpRequest):
                     'text': msg.reply_to.content,
                     'type': msg.reply_to.type,
                 }
-            
+
             msgs_data.append({
                 "id": msg.id,
                 "sender": msg.member.user.id,
@@ -934,7 +937,7 @@ def home(req: HttpRequest):
         pin_order = pinned_conv_dict.get(conv.id, 0)
 
         last_message_preview = _format_message_preview(msgs_qs[0]) if msgs_qs else ""
-        
+
         conversations_list.append({
             "id": conv.id,
             "type": conv.type,
@@ -963,36 +966,36 @@ def pin_conversation(req: HttpRequest):
     """
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
     user, err_resp = _get_active_user(user_id)
     if err_resp:
         return err_resp
-    
+
     data = load_body(req) or {}
     conv_id = data.get('id')
-    
+
     if not conv_id:
         return request_failed(code=2001, info="Missing conversation ID.", status_code=400)
-    
+
     # 检查会话是否存在且用户是成员
     member = Member.objects.filter(conversation_id=conv_id, user_id=user_id).first()
     if not member:
         return request_failed(code=3003, info="Conversation not found or user not a member.", status_code=404)
     conv = Conversation.objects.get(id=conv_id)
-    
+
     # 检查是否已经置顶
     existing_pin = PinnedConversation.objects.filter(user=user, conversation=conv).first()
     if existing_pin:
         return request_failed(code=3005, info="Conversation already pinned.", status_code=400)
-    
+
     # 获取当前最大的置顶顺序
     max_order = PinnedConversation.objects.filter(user=user).aggregate(
         max_order=Max('pin_order')
     )['max_order'] or 0
-    
+
     # 创建置顶记录
     with atomic():
         PinnedConversation.objects.create(
@@ -1000,11 +1003,11 @@ def pin_conversation(req: HttpRequest):
             conversation=conv,
             pin_order=max_order + 1
         )
-        
+
         # 同时更新Member表中的pinned字段，保持兼容性
         member.pinned = True
         member.save()
-    
+
     logger.info(f"(pin_conversation) user={user_id} pinned conversation={conv_id}")
     return request_success()
 
@@ -1015,46 +1018,46 @@ def unpin_conversation(req: HttpRequest):
     """
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
     user, err_resp = _get_active_user(user_id)
     if err_resp:
         return err_resp
-    
+
     data = load_body(req) or {}
     conv_id = data.get('id')
-    
+
     if not conv_id:
         return request_failed(code=2001, info="Missing conversation ID.", status_code=400)
-    
+
     # 检查会话是否存在且用户是成员
     member = Member.objects.filter(conversation_id=conv_id, user_id=user_id).first()
     if not member:
         return request_failed(code=3003, info="Conversation not found or user not a member.", status_code=404)
     conv = Conversation.objects.get(id=conv_id)
-    
+
     # 删除置顶记录
     with atomic():
         # 获取要删除的置顶记录的顺序
         pinned_conv = PinnedConversation.objects.filter(user=user, conversation=conv).first()
         if not pinned_conv:
             return request_failed(code=3006, info="Conversation not pinned.", status_code=400)
-        
+
         removed_order = pinned_conv.pin_order
         pinned_conv.delete()
-        
+
         # 更新其他置顶会话的顺序，确保连续
         PinnedConversation.objects.filter(
             user=user,
             pin_order__gt=removed_order
         ).update(pin_order=F('pin_order') - 1)
-        
+
         # 同时更新Member表中的pinned字段，保持兼容性
         member.pinned = False
         member.save()
-    
+
     logger.info(f"(unpin_conversation) user={user_id} unpinned conversation={conv_id}")
     return request_success()
 
@@ -1065,21 +1068,21 @@ def get_pinned_conversations(req: HttpRequest):
     """
     if req.method != 'GET':
         return BAD_METHOD
-    
+
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
     user, err_resp = _get_active_user(user_id)
     if err_resp:
         return err_resp
-    
+
     # 获取置顶会话列表，按置顶顺序排序
     pinned_convs = PinnedConversation.objects.filter(
         user=user
     ).order_by('pin_order').values_list('conversation_id', flat=True)
-    
+
     pinned_list = list(pinned_convs)
-    
+
     logger.info(f"(get_pinned_conversations) user={user_id} pinned_count={len(pinned_list)}")
     return request_success(data={"pinned": pinned_list})
 
@@ -1092,62 +1095,62 @@ def invite_to_group(req: HttpRequest):
     """
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     # 身份验证
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
-    
+
     # 解析请求体
     data = load_body(req) or {}
     group_id = data.get('group_id')
     friend_id = data.get('friend_id')
     message = data.get('message', '')
-    
+
     if not group_id or not friend_id:
         return request_failed(code=2001, info="Missing group_id or friend_id.", status_code=400)
-    
+
     User = get_user_model()
-    
+
     # 检查用户是否存在
     inviter = User.objects.filter(id=user_id).first()
     if not inviter:
         return request_failed(code=9001, info="User not found.", status_code=404)
-    
+
     # 检查好友是否存在
     invitee = User.objects.filter(id=friend_id).first()
     if not invitee:
         return request_failed(code=2004, info="Friend not found.", status_code=404)
-    
+
     # 检查群聊是否存在
     conversation = Conversation.objects.filter(id=group_id, type='group').first()
     if not conversation:
         return request_failed(code=3003, info="Group not found.", status_code=404)
     if not conversation.is_active:
         return request_failed(code=2012, info="Conversation is inactive.", status_code=403)
-    
+
     # 检查邀请者是否是群成员
     inviter_member = Member.objects.filter(conversation=conversation, user=inviter).first()
     if not inviter_member:
         return request_failed(code=3004, info="You are not a member of this group.", status_code=403)
-    
+
     # 检查被邀请者是否已经是群成员
     if Member.objects.filter(conversation=conversation, user=invitee).exists():
         return request_failed(code=3005, info="User is already a member of this group.", status_code=400)
-    
+
     # 检查是否已经是好友
     friendship = Friendship.objects.filter(
         Q(user_a=inviter, user_b=invitee) | Q(user_a=invitee, user_b=inviter)
     ).first()
     if not friendship:
         return request_failed(code=3006, info="You can only invite your friends.", status_code=403)
-    
+
     # 检查是否已经有邀请记录（任何状态）
     existing_invitation = GroupInvitation.objects.filter(
         conversation=conversation,
         invitee=invitee
     ).first()
-    
+
     if existing_invitation:
         # 如果已有待处理的邀请，则返回错误
         if existing_invitation.status == 'pending':
@@ -1170,19 +1173,19 @@ def invite_to_group(req: HttpRequest):
             invitee=invitee,
             message=message
         )
-    
+
     logger.info(f"(invite_to_group) user={user_id} invited friend={friend_id} to group={group_id}")
-    
+
     # 通知群主和管理员有新的邀请待审核
     admin_members = Member.objects.filter(
         conversation=conversation,
         role__in=['owner', 'admin']
     ).exclude(user=inviter)  # 排除邀请者自己
-    
+
     admin_ids = [m.user_id for m in admin_members]
     if admin_ids:
         notify_conversation_event(admin_ids, 'group_invitation_pending', group_id)
-    
+
     return request_success({'id': invitation.id})
 
 @csrf_exempt
@@ -1194,41 +1197,41 @@ def list_group_invitations(req: HttpRequest):
     """
     if req.method != 'GET':
         return BAD_METHOD
-    
+
     # 身份验证
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
-    
+
     # 获取参数
     group_id = req.GET.get('group_id')
     status = req.GET.get('status')
-    
+
     if not group_id:
         return request_failed(code=2001, info="Missing group_id.", status_code=400)
-    
+
     # 检查群聊是否存在
     conversation = Conversation.objects.filter(id=group_id, type='group').first()
     if not conversation:
         return request_failed(code=3003, info="Group not found.", status_code=404)
-    
+
     # 检查用户是否是群成员
     member = Member.objects.filter(conversation=conversation, user_id=user_id).first()
     if not member:
         return request_failed(code=3004, info="You are not a member of this group.", status_code=403)
-    
+
     # 只有群主和管理员可以查看邀请列表
     if member.role not in ['owner', 'admin']:
         return request_failed(code=3008, info="Only owner and admin can view invitations.", status_code=403)
-    
+
     # 查询邀请列表
     invitations_qs = GroupInvitation.objects.filter(conversation=conversation)
     if status:
         invitations_qs = invitations_qs.filter(status=status)
-    
+
     # 按创建时间倒序排列
     invitations_qs = invitations_qs.order_by('-created_at')
-    
+
     invitations = []
     for inv in invitations_qs:
         reviewer_name = ''
@@ -1238,17 +1241,17 @@ def list_group_invitations(req: HttpRequest):
             reviewer_member = Member.objects.filter(conversation=conversation, user=inv.reviewer).first()
             reviewer_nickname = reviewer_member.nickname if reviewer_member else ''
             reviewer_name = reviewer_nickname or inv.reviewer.username
-        
+
         # 获取邀请人在群中的昵称
         inviter_member = Member.objects.filter(conversation=conversation, user=inv.inviter).first()
         inviter_nickname = inviter_member.nickname if inviter_member else ''
         inviter_name = inviter_nickname or inv.inviter.username
-        
+
         # 获取被邀请人在群中的昵称（如果已加入群）
         invitee_member = Member.objects.filter(conversation=conversation, user=inv.invitee).first()
         invitee_nickname = invitee_member.nickname if invitee_member else ''
         invitee_name = invitee_nickname or inv.invitee.username
-        
+
         invitations.append({
             'id': inv.id,
             'inviter_id': inv.inviter.id,
@@ -1266,7 +1269,7 @@ def list_group_invitations(req: HttpRequest):
             'review_time': inv.review_time.isoformat() if inv.review_time else None,
             'review_comment': inv.review_comment,
         })
-    
+
     return request_success({'invitations': invitations})
 
 @csrf_exempt
@@ -1278,40 +1281,40 @@ def review_group_invitation(req: HttpRequest):
     """
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     # 身份验证
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
-    
+
     # 解析请求体
     data = load_body(req) or {}
     invitation_id = data.get('invitation_id')
     action = data.get('action')
     comment = data.get('comment', '')
-    
+
     if not invitation_id or not action:
         return request_failed(code=2001, info="Missing invitation_id or action.", status_code=400)
-    
+
     if action not in ['approve', 'reject']:
         return request_failed(code=2001, info="Invalid action. Must be 'approve' or 'reject'.", status_code=400)
-    
+
     User = get_user_model()
     reviewer = User.objects.filter(id=user_id).first()
     if not reviewer:
         return request_failed(code=9001, info="User not found.", status_code=404)
-    
+
     # 查找邀请记录
     invitation = GroupInvitation.objects.filter(id=invitation_id).first()
     if not invitation:
         return request_failed(code=3009, info="Invitation not found.", status_code=404)
     if not invitation.conversation.is_active:
         return request_failed(code=2012, info="Conversation is inactive.", status_code=403)
-    
+
     # 检查邀请状态是否为待处理
     if invitation.status != 'pending':
         return request_failed(code=3010, info="Invitation has already been processed.", status_code=400)
-    
+
     # 检查审核者是否是群主或管理员
     reviewer_member = Member.objects.filter(
         conversation=invitation.conversation,
@@ -1320,7 +1323,7 @@ def review_group_invitation(req: HttpRequest):
     ).first()
     if not reviewer_member:
         return request_failed(code=3008, info="Only owner and admin can review invitations.", status_code=403)
-    
+
     # 更新邀请状态
     with atomic():
         if action == 'approve':
@@ -1333,24 +1336,24 @@ def review_group_invitation(req: HttpRequest):
                 role='member',
                 time=timezone.now()
             )
-            
+
             # 通知被邀请者已加入群聊
             notify_conversation_event([invitation.invitee.id], 'conversation_created', invitation.conversation.id)
-            
+
             # 通知群成员有新成员加入
             member_ids = list(invitation.conversation.members.values_list('user_id', flat=True))
             notify_conversation_event(member_ids, 'group_member_joined', invitation.conversation.id)
-            
+
         else:  # reject
             invitation.status = 'rejected'
-        
+
         invitation.reviewer = reviewer
         invitation.review_time = timezone.now()
         invitation.review_comment = comment
         invitation.save()
-    
+
     logger.info(f"(review_group_invitation) user={user_id} {action}d invitation={invitation_id}")
-    
+
     return request_success()
 
 @csrf_exempt
@@ -1361,28 +1364,28 @@ def get_user_invitations(req: HttpRequest):
     """
     if req.method != 'GET':
         return BAD_METHOD
-    
+
     # 身份验证
     user_id = parse_jwt_token(get_jwt_token(req))
     if not user_id:
         return request_failed(code=3002, info="Invalid JWT Token.", status_code=403)
-    
+
     # 获取参数
     status = req.GET.get('status')
-    
+
     User = get_user_model()
     user = User.objects.filter(id=user_id).first()
     if not user:
         return request_failed(code=9001, info="User not found.", status_code=404)
-    
+
     # 查询用户收到的邀请列表
     invitations_qs = GroupInvitation.objects.filter(invitee=user, conversation__is_active=True)
     if status:
         invitations_qs = invitations_qs.filter(status=status)
-    
+
     # 按创建时间倒序排列
     invitations_qs = invitations_qs.order_by('-created_at')
-    
+
     invitations = []
     for inv in invitations_qs:
         inviter_member = Member.objects.filter(conversation=inv.conversation, user=inv.inviter).first()
@@ -1408,5 +1411,5 @@ def get_user_invitations(req: HttpRequest):
             'created_at': inv.created_at.isoformat(),
             'message': inv.message,
         })
-    
+
     return request_success({'invitations': invitations})

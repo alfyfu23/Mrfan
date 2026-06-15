@@ -1,17 +1,19 @@
 import json
+
 import pytest
-from friend.models import FriendGroup,Friendship
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
+from friend.models import FriendGroup, Friendship
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 User = get_user_model()
 
 @pytest.mark.django_db
 def test_remove_friend_from_group_invalid_jwt(client):
     """❌ 无效JWT"""
-    user = User.objects.create_user(username="testuser", password="Password123")
+    User.objects.create_user(username="testuser", password="Password123")
     resp = client.post(
         reverse("remove_from_group"),
         data=json.dumps({"group_id": 1, "friend_id": 2}),
@@ -47,9 +49,9 @@ def test_remove_friend_from_group_user_not_found(client):
         HTTP_AUTHORIZATION=f"Bearer {token}"
     )
     assert_error_response(resp, 404, 9001, "User not found.")
-    
+
 @pytest.mark.django_db
-def test_remove_friend_from_group_user_not_found(client):
+def test_remove_friend_from_group_friend_not_found(client):
     """❌ 好友不存在"""
     user = User.objects.create_user(username="testuser", password="Password123")
     friend = User.objects.create_user(username="friend", password="Password123")

@@ -1,8 +1,10 @@
 import json
+
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
-from django.contrib.auth import get_user_model
+
 from chat.models import Conversation, Member, Message
 
 
@@ -25,7 +27,7 @@ def test_mark_read_and_edit_recall(client: Client):
     # 创建私聊会话
     conv = Conversation.objects.create(type='private')
     m1 = Member.objects.create(conversation=conv, user=u1, nickname='u1', role='member')
-    m2 = Member.objects.create(conversation=conv, user=u2, nickname='u2', role='member')
+    Member.objects.create(conversation=conv, user=u2, nickname='u2', role='member')
 
     # u1 发一条消息
     msg = Message.objects.create(conversation=conv, member=m1, content='hello')

@@ -1,9 +1,11 @@
 import json
+
 import pytest
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 User = get_user_model()
 
@@ -16,7 +18,7 @@ def test_bad_method(client):
 @pytest.mark.django_db
 def test_edit_info_jwt_invalid(client):
     """❌ JWT无效"""
-    user = User.objects.create_user(username="testuser", password="123456")
+    User.objects.create_user(username="testuser", password="123456")
     resp = client.post(
         reverse("edit_info"),
         data=json.dumps({"field": "username", "value": "newuser", "password":""}),

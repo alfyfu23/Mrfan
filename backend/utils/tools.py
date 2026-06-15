@@ -1,5 +1,6 @@
 import json
-from typing import Optional 
+from typing import Optional
+
 
 # Load data of req body. Asserts json. Return None if failed.
 def load_body(req) -> Optional[dict]:
@@ -8,7 +9,7 @@ def load_body(req) -> Optional[dict]:
     except Exception:
         return None
     return data
-    
+
 
 # get jwt token, returns None if failed
 def get_jwt_token(req) -> str:

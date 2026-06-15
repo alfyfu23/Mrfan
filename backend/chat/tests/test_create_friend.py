@@ -1,8 +1,11 @@
 import json
+
 import pytest
 from django.test import Client
 from django.urls import reverse
+
 from chat.models import Conversation, Member
+
 
 @pytest.mark.django_db
 def test_create_friend_conversation_message_flow(client: Client):

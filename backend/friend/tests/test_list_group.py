@@ -1,10 +1,10 @@
-import json
 import pytest
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
 from friend.models import FriendGroup, Friendship
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 User = get_user_model()
 
@@ -17,7 +17,7 @@ def test_list_groups_bad_method(client):
 @pytest.mark.django_db
 def test_list_groups_invalid_jwt(client):
     """❌ JWT无效"""
-    user = User.objects.create_user(username="testuser", password="test123456")
+    User.objects.create_user(username="testuser", password="test123456")
     resp = client.get(
         reverse("list_groups"),
         content_type="application/json",
@@ -64,12 +64,12 @@ def test_list_groups_success(client):
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {token}"
     )
-    
+
     response_data = resp.json()
 
     # 验证分组列表数据
     assert response_data.get("code") == 0, f"Expected 'code' to be 0, but got {response_data.get('code')}"
-    
+
     # 检查返回的分组名
     assert "Group 1" in [group['name'] for group in response_data['groups']]
     assert "Group 2" in [group['name'] for group in response_data['groups']]
@@ -79,7 +79,7 @@ def test_list_groups_success(client):
     group1_data = next(group for group in response_data['groups'] if group['name'] == "Group 1")
     group2_data = next(group for group in response_data['groups'] if group['name'] == "Group 2")
     ungrouped_data = next(group for group in response_data['groups'] if group['name'] == "未分组")
-    
+
     # 验证好友1、2是否在正确的分组中
     assert friend1.id in group1_data['members']
     assert friend2.id in group2_data['members']

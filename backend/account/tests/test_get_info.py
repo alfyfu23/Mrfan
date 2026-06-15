@@ -1,10 +1,12 @@
 import json
+
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
-from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 
 @pytest.fixture
@@ -36,7 +38,7 @@ def test_info_invalid_jwt(client: Client):
         content_type='application/json'
     )
     assert_error_response(resp, 403, 1101, "Invalid JWT token.")
-    
+
 
 @pytest.mark.django_db
 def test_get_info_user_not_exist(client: Client):
