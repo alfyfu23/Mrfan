@@ -1,13 +1,16 @@
 import json
+
 import pytest
-from django.utils import timezone
-from channels.testing import WebsocketCommunicator
-from im.asgi import application
-from chat.models import Conversation, Member, Message
 from asgiref.sync import sync_to_async
-from django.urls import reverse
-from django.test import Client
+from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
+from django.test import Client
+from django.urls import reverse
+from django.utils import timezone
+
+from chat.models import Conversation, Member, Message
+from im.asgi import application
+
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
@@ -54,14 +57,14 @@ async def test_chat_consumer_saves_and_broadcasts(settings):
     User = get_user_model()
     alice_user = await sync_to_async(lambda: User.objects.get(username='alice'))()
     bob_user = await sync_to_async(lambda: User.objects.get(username='bob'))()
-    
+
     # 创建好友关系
     from friend.models import Friendship
     await sync_to_async(Friendship.objects.create)(
         user_a=alice_user,
         user_b=bob_user
     )
-    
+
     conv = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     await sync_to_async(Member.objects.create)(
         user=alice_user,
@@ -149,7 +152,7 @@ async def test_chat_consumer_connect_error_branches(settings):
     assert not ok
 
     # 2) 无效 token
-    ws2 = WebsocketCommunicator(application, f"/ws/chat?token=bad.token")
+    ws2 = WebsocketCommunicator(application, "/ws/chat?token=bad.token")
     ok, _ = await ws2.connect()
     assert not ok
 
@@ -186,8 +189,8 @@ async def test_chat_consumer_save_message_error_paths(settings):
     conv = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     dana = await sync_to_async(lambda: get_user_model().objects.get(username='dana'))()
     await sync_to_async(Member.objects.create)(
-        user=dana, 
-        conversation=conv, 
+        user=dana,
+        conversation=conv,
         role='member',
         time=timezone.now()  # 添加time字段
     )
@@ -224,8 +227,8 @@ async def test_chat_consumer_save_message_error_paths(settings):
     conv2 = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     user2 = await sync_to_async(lambda: get_user_model().objects.get(username='dana2'))()
     await sync_to_async(Member.objects.create)(
-        user=user2, 
-        conversation=conv2, 
+        user=user2,
+        conversation=conv2,
         role='member',
         time=timezone.now()  # 添加time字段
     )
@@ -252,7 +255,7 @@ async def test_chat_consumer_save_message_error_paths(settings):
 async def test_consumer_conversation_event(settings):
     """测试 conversation_event 方法 - 通过实际 WebSocket 连接测试"""
     client = Client()
-    
+
     # 注册用户
     resp = await sync_to_async(lambda: client.post(
         reverse('register'),
@@ -265,12 +268,12 @@ async def test_consumer_conversation_event(settings):
         content_type='application/json'
     ))()).json().get('jwt_token')
     assert token
-    
+
     # 连接
     ws = WebsocketCommunicator(application, f"/ws/chat?token={token}")
     ok, _ = await ws.connect()
     assert ok
-    
+
     # 验证连接成功即可
     await ws.disconnect()
 
@@ -280,7 +283,7 @@ async def test_consumer_conversation_event(settings):
 async def test_consumer_receive_invalid_message_type(settings):
     """测试 receive 方法处理无效消息类型"""
     client = Client()
-    
+
     # 注册用户
     resp = await sync_to_async(lambda: client.post(
         reverse('register'),
@@ -293,7 +296,7 @@ async def test_consumer_receive_invalid_message_type(settings):
         content_type='application/json'
     ))()).json().get('jwt_token')
     assert token
-    
+
     # 创建会话
     User = get_user_model()
     user = await sync_to_async(lambda: User.objects.get(username='invalid_type_user'))()
@@ -304,21 +307,21 @@ async def test_consumer_receive_invalid_message_type(settings):
         role='member',
         time=timezone.now()
     )
-    
+
     # 连接
     ws = WebsocketCommunicator(application, f"/ws/chat?token={token}")
     ok, _ = await ws.connect()
     assert ok
-    
+
     # 发送无效类型的消息
     await ws.send_to(text_data=json.dumps({'type': 'invalid_type', 'conversation': conv.id}))
-    
+
     # 应该收到错误消息
     recv = await ws.receive_from()
     data = json.loads(recv)
     assert data.get('type') == 'error'
     assert data.get('error') == 'invalid_message_type'
-    
+
     await ws.disconnect()
 
 
@@ -327,19 +330,19 @@ async def test_consumer_receive_invalid_message_type(settings):
 async def test_consumer_receive_not_member(settings):
     """测试 receive 方法处理非成员发送消息"""
     client = Client()
-    
+
     # 注册两个用户
     resp1 = await sync_to_async(lambda: client.post(
         reverse('register'),
         data=json.dumps({'username': 'member1', 'password': 'member123'}),
         content_type='application/json'
     ))()
-    token1 = resp1.json().get('jwt_token') or (await sync_to_async(lambda: client.post(
+    resp1.json().get('jwt_token') or (await sync_to_async(lambda: client.post(
         reverse('login'),
         data=json.dumps({'username': 'member1', 'password': 'member123'}),
         content_type='application/json'
     ))()).json().get('jwt_token')
-    
+
     resp2 = await sync_to_async(lambda: client.post(
         reverse('register'),
         data=json.dumps({'username': 'member2', 'password': 'member456'}),
@@ -350,11 +353,11 @@ async def test_consumer_receive_not_member(settings):
         data=json.dumps({'username': 'member2', 'password': 'member456'}),
         content_type='application/json'
     ))()).json().get('jwt_token')
-    
+
     # 创建会话，只添加 member1
     User = get_user_model()
     user1 = await sync_to_async(lambda: User.objects.get(username='member1'))()
-    user2 = await sync_to_async(lambda: User.objects.get(username='member2'))()
+    await sync_to_async(lambda: User.objects.get(username='member2'))()
     conv = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     await sync_to_async(Member.objects.create)(
         user=user1,
@@ -362,25 +365,25 @@ async def test_consumer_receive_not_member(settings):
         role='member',
         time=timezone.now()
     )
-    
+
     # member2 连接（虽然不在会话中，但连接应该成功，因为 connect 不再检查 membership）
     ws = WebsocketCommunicator(application, f"/ws/chat?token={token2}")
     ok, _ = await ws.connect()
     assert ok
-    
+
     # member2 尝试发送消息到不属于他的会话
     await ws.send_to(text_data=json.dumps({
         'type': 'message',
         'conversation': conv.id,
         'message': {'content': 'test'}
     }))
-    
+
     # 应该收到错误消息（not_member 或 not_friends，取决于是否有好友关系）
     recv = await ws.receive_from()
     data = json.loads(recv)
     assert data.get('type') == 'error'
     assert data.get('error') in ['not_member', 'not_friends']
-    
+
     await ws.disconnect()
 
 
@@ -389,7 +392,7 @@ async def test_consumer_receive_not_member(settings):
 async def test_consumer_disconnect(settings):
     """测试 disconnect 方法"""
     client = Client()
-    
+
     # 注册用户
     resp = await sync_to_async(lambda: client.post(
         reverse('register'),
@@ -402,15 +405,15 @@ async def test_consumer_disconnect(settings):
         content_type='application/json'
     ))()).json().get('jwt_token')
     assert token
-    
+
     # 连接
     ws = WebsocketCommunicator(application, f"/ws/chat?token={token}")
     ok, _ = await ws.connect()
     assert ok
-    
+
     # 断开连接
     await ws.disconnect()
-    
+
     # 断开应该成功，不会抛出异常
 
 
@@ -430,7 +433,7 @@ async def test_consumer_connect_parse_error(settings):
 async def test_consumer_chat_message_handler(settings):
     """测试 chat_message 事件处理器 - 通过实际消息发送测试"""
     client = Client()
-    
+
     # 注册两个用户
     resp1 = await sync_to_async(lambda: client.post(
         reverse('register'),
@@ -442,7 +445,7 @@ async def test_consumer_chat_message_handler(settings):
         data=json.dumps({'username': 'chat_msg_user1', 'password': 'chatmsg123'}),
         content_type='application/json'
     ))()).json().get('jwt_token')
-    
+
     resp2 = await sync_to_async(lambda: client.post(
         reverse('register'),
         data=json.dumps({'username': 'chat_msg_user2', 'password': 'chatmsg456'}),
@@ -453,19 +456,19 @@ async def test_consumer_chat_message_handler(settings):
         data=json.dumps({'username': 'chat_msg_user2', 'password': 'chatmsg456'}),
         content_type='application/json'
     ))()).json().get('jwt_token')
-    
+
     # 创建会话
     User = get_user_model()
     user1 = await sync_to_async(lambda: User.objects.get(username='chat_msg_user1'))()
     user2 = await sync_to_async(lambda: User.objects.get(username='chat_msg_user2'))()
-    
+
     # 创建好友关系
     from friend.models import Friendship
     await sync_to_async(Friendship.objects.create)(
         user_a=user1,
         user_b=user2
     )
-    
+
     conv = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     await sync_to_async(Member.objects.create)(
         user=user1,
@@ -479,30 +482,30 @@ async def test_consumer_chat_message_handler(settings):
         role='member',
         time=timezone.now()
     )
-    
+
     # 两个用户都连接
     ws1 = WebsocketCommunicator(application, f"/ws/chat?token={token1}")
     ok1, _ = await ws1.connect()
     assert ok1
-    
+
     ws2 = WebsocketCommunicator(application, f"/ws/chat?token={token2}")
     ok2, _ = await ws2.connect()
     assert ok2
-    
+
     # user1 发送消息，user2 应该通过 chat_message 处理器收到
     await ws1.send_to(text_data=json.dumps({
         'type': 'message',
         'conversation': conv.id,
         'message': {'content': 'test message for chat_message handler'}
     }))
-    
+
     # user2 应该收到消息（通过 chat_message 处理器）
     recv = await ws2.receive_from()
     data = json.loads(recv)
     assert data.get('type') == 'message'
     assert data.get('conversation') == conv.id
     assert data.get('message', {}).get('content') == 'test message for chat_message handler'
-    
+
     await ws1.disconnect()
     await ws2.disconnect()
 
@@ -512,7 +515,7 @@ async def test_consumer_chat_message_handler(settings):
 async def test_consumer_save_message_conversation_not_found(settings):
     """测试 save_message_for_conversation 处理会话不存在的情况"""
     client = Client()
-    
+
     # 注册用户
     resp = await sync_to_async(lambda: client.post(
         reverse('register'),
@@ -525,7 +528,7 @@ async def test_consumer_save_message_conversation_not_found(settings):
         content_type='application/json'
     ))()).json().get('jwt_token')
     assert token
-    
+
     # 创建会话
     User = get_user_model()
     user = await sync_to_async(lambda: User.objects.get(username='save_conv_user'))()
@@ -536,25 +539,25 @@ async def test_consumer_save_message_conversation_not_found(settings):
         role='member',
         time=timezone.now()
     )
-    
+
     # 连接
     ws = WebsocketCommunicator(application, f"/ws/chat?token={token}")
     ok, _ = await ws.connect()
     assert ok
-    
+
     # 尝试发送消息到不存在的会话
     await ws.send_to(text_data=json.dumps({
         'type': 'message',
         'conversation': 99999,  # 不存在的会话
         'message': {'content': 'test'}
     }))
-    
+
     # 应该收到错误消息
     recv = await ws.receive_from()
     data = json.loads(recv)
     assert data.get('type') == 'error'
     assert data.get('error') == 'conversation_not_found'
-    
+
     await ws.disconnect()
 
 
@@ -563,7 +566,7 @@ async def test_consumer_save_message_conversation_not_found(settings):
 async def test_consumer_save_message_user_not_found(settings):
     """测试 save_message_for_conversation 处理用户不存在的情况"""
     client = Client()
-    
+
     # 注册用户
     resp = await sync_to_async(lambda: client.post(
         reverse('register'),
@@ -576,7 +579,7 @@ async def test_consumer_save_message_user_not_found(settings):
         content_type='application/json'
     ))()).json().get('jwt_token')
     assert token
-    
+
     # 创建会话
     User = get_user_model()
     user = await sync_to_async(lambda: User.objects.get(username='save_user_user'))()
@@ -587,16 +590,16 @@ async def test_consumer_save_message_user_not_found(settings):
         role='member',
         time=timezone.now()
     )
-    
+
     # 连接
     ws = WebsocketCommunicator(application, f"/ws/chat?token={token}")
     ok, _ = await ws.connect()
     assert ok
-    
+
     # 删除用户后尝试发送消息
     user_id = user.id
     await sync_to_async(lambda: User.objects.filter(id=user_id).delete())()
-    
+
     # 由于用户已删除，WebSocket 连接可能已经断开
     # 这个测试主要确保代码能处理用户不存在的情况
     await ws.disconnect()
@@ -684,14 +687,14 @@ async def test_consumer_read_receipt(settings):
     User = get_user_model()
     user1 = await sync_to_async(lambda: User.objects.get(username='receipt_user1'))()
     user2 = await sync_to_async(lambda: User.objects.get(username='receipt_user2'))()
-    
+
     # 创建好友关系
     from friend.models import Friendship
     await sync_to_async(Friendship.objects.create)(
         user_a=user1,
         user_b=user2
     )
-    
+
     conv = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     await sync_to_async(Member.objects.create)(
         user=user1, conversation=conv, role='member', time=timezone.now()
@@ -739,7 +742,7 @@ async def test_consumer_read_receipt(settings):
     for attempt in range(max_attempts):
         recv = await ws1.receive_from()
         data = json.loads(recv)
-        
+
         if data.get('type') == 'read_receipt_update':
             assert data.get('conversation') == conv.id
             assert data.get('message_id') == message_id
@@ -757,7 +760,7 @@ async def test_consumer_read_receipt(settings):
 @pytest.mark.django_db(transaction=True)
 async def test_consumer_edit_message(settings):
     """测试消息编辑功能"""
-    client = Client()
+    Client()
 
     # 创建两个用户
     User = get_user_model()
@@ -767,14 +770,14 @@ async def test_consumer_edit_message(settings):
     from utils.jwt import generate_jwt_token
     token1 = generate_jwt_token('edit_user1', user1.id)
     token2 = generate_jwt_token('edit_user2', user2.id)
-    
+
     # 创建好友关系
     from friend.models import Friendship
     await sync_to_async(Friendship.objects.create)(
         user_a=user1,
         user_b=user2
     )
-    
+
     conv = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     await sync_to_async(Member.objects.create)(
         user=user1, conversation=conv, role='member', time=timezone.now()
@@ -835,7 +838,7 @@ async def test_consumer_edit_message(settings):
 @pytest.mark.django_db(transaction=True)
 async def test_consumer_recall_message(settings):
     """测试消息撤回功能"""
-    client = Client()
+    Client()
 
     # 创建两个用户
     User = get_user_model()
@@ -852,7 +855,7 @@ async def test_consumer_recall_message(settings):
         user_a=user1,
         user_b=user2
     )
-    
+
     # 创建会话
     conv = await sync_to_async(lambda: Conversation.objects.create(type='private'))()
     await sync_to_async(Member.objects.create)(
@@ -916,7 +919,7 @@ async def test_consumer_recall_message(settings):
 @pytest.mark.django_db(transaction=True)
 async def test_consumer_edit_message_permission_denied(settings):
     """测试编辑消息权限检查"""
-    client = Client()
+    Client()
 
     # 创建两个用户
     User = get_user_model()
@@ -926,7 +929,7 @@ async def test_consumer_edit_message_permission_denied(settings):
     from utils.jwt import generate_jwt_token
     token1 = generate_jwt_token('edit_perm_user1', user1.id)
     token2 = generate_jwt_token('edit_perm_user2', user2.id)
-    
+
     # 创建好友关系
     from friend.models import Friendship
     await sync_to_async(Friendship.objects.create)(
@@ -985,7 +988,7 @@ async def test_consumer_edit_message_permission_denied(settings):
 @pytest.mark.django_db(transaction=True)
 async def test_consumer_recall_message_permission_denied(settings):
     """测试撤回消息权限检查"""
-    client = Client()
+    Client()
 
     # 创建两个用户
     User = get_user_model()
@@ -995,7 +998,7 @@ async def test_consumer_recall_message_permission_denied(settings):
     from utils.jwt import generate_jwt_token
     token1 = generate_jwt_token('recall_perm_user1', user1.id)
     token2 = generate_jwt_token('recall_perm_user2', user2.id)
-    
+
     # 创建好友关系
     from friend.models import Friendship
     await sync_to_async(Friendship.objects.create)(
@@ -1054,6 +1057,7 @@ async def test_consumer_recall_message_permission_denied(settings):
 async def test_consumer_save_message_by_user_id_success(settings):
     """测试 save_message_by_user_id 方法成功情况"""
     from unittest.mock import AsyncMock
+
     from chat.consumers import ChatConsumer
 
     # 创建用户和会话
@@ -1083,6 +1087,7 @@ async def test_consumer_save_message_by_user_id_success(settings):
 async def test_consumer_save_message_by_user_id_user_not_found(settings):
     """测试 save_message_by_user_id 方法用户不存在的情况"""
     from unittest.mock import AsyncMock
+
     from chat.consumers import ChatConsumer
 
     # 创建consumer实例并设置mock send方法
@@ -1104,6 +1109,7 @@ async def test_consumer_save_message_by_user_id_user_not_found(settings):
 async def test_consumer_save_message_by_user_id_server_error(settings):
     """测试 save_message_by_user_id 方法服务器错误的情况"""
     from unittest.mock import AsyncMock, patch
+
     from chat.consumers import ChatConsumer
 
     # 创建用户
@@ -1130,6 +1136,7 @@ async def test_consumer_save_message_by_user_id_server_error(settings):
 async def test_consumer_save_message_by_user_id_conversation_error(settings):
     """测试 save_message_by_user_id 方法获取会话失败的情况"""
     from unittest.mock import AsyncMock, patch
+
     from chat.consumers import ChatConsumer
 
     # 创建用户
@@ -1156,6 +1163,7 @@ async def test_consumer_save_message_by_user_id_conversation_error(settings):
 async def test_consumer_save_message_by_user_id_message_create_error(settings):
     """测试 save_message_by_user_id 方法创建消息失败的情况"""
     from unittest.mock import AsyncMock, patch
+
     from chat.consumers import ChatConsumer
 
     # 创建用户和会话

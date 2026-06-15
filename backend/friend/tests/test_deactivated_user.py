@@ -1,9 +1,11 @@
 import json
+
 import pytest
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 User = get_user_model()
 
@@ -16,13 +18,13 @@ def test_befriend_deactivated_user(client):
     deactivated_user = User.objects.create_user(username="deactivateduser", password="123456")
     deactivated_user.is_active = False
     deactivated_user.save()
-    
+
     # 尝试与已注销用户建立好友关系
     response = client.post(
         reverse("befriend", args=[deactivated_user.id]),
         HTTP_AUTHORIZATION=f"Bearer {generate_jwt_token('activeuser', active_user.id)}"
     )
-    
+
     assert_error_response(response, 400, 4009, "Cannot befriend a deactivated user.")
 
 
@@ -34,13 +36,13 @@ def test_agree_deactivated_user_request(client):
     deactivated_user = User.objects.create_user(username="deactivateduser", password="123456")
     deactivated_user.is_active = False
     deactivated_user.save()
-    
+
     # 尝试同意已注销用户的好友请求
     response = client.post(
         reverse("agree", args=[deactivated_user.id]),
         HTTP_AUTHORIZATION=f"Bearer {generate_jwt_token('activeuser', active_user.id)}"
     )
-    
+
     assert_error_response(response, 400, 4010, "Cannot establish friendship with deactivated users.")
 
 
@@ -52,13 +54,13 @@ def test_check_friendship_with_deactivated_user(client):
     deactivated_user = User.objects.create_user(username="deactivateduser", password="123456")
     deactivated_user.is_active = False
     deactivated_user.save()
-    
+
     # 尝试检查与已注销用户的好友关系
     response = client.get(
         reverse("check_friendship", args=[deactivated_user.id]),
         HTTP_AUTHORIZATION=f"Bearer {generate_jwt_token('activeuser', active_user.id)}"
     )
-    
+
     assert_error_response(response, 400, 4011, "Target user has been deactivated.")
 
 
@@ -70,11 +72,11 @@ def test_add_deactivated_user_to_group(client):
     deactivated_user = User.objects.create_user(username="deactivateduser", password="123456")
     deactivated_user.is_active = False
     deactivated_user.save()
-    
+
     # 创建好友分组
     from friend.models import FriendGroup
     group = FriendGroup.objects.create(name="Test Group", user=active_user)
-    
+
     # 尝试将已注销用户添加到好友分组
     response = client.post(
         reverse("add_to_group"),
@@ -82,5 +84,5 @@ def test_add_deactivated_user_to_group(client):
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {generate_jwt_token('activeuser', active_user.id)}"
     )
-    
+
     assert_error_response(response, 400, 4014, "Cannot add deactivated user to friend group.")

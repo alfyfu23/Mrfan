@@ -6,7 +6,7 @@ import { BACKEND_URL } from "@/constant/strings";
 import { Message } from "@/types/Message";
 import UserTooltip from "./UserTooltip";
 import Avatar from "./Avatar";
-import { getThemedColor, getTextColor } from '@/utils/themeDetector';
+import { getThemedColor } from '@/utils/themeDetector';
 
 interface FriendsListProps {
     conversationId: number | null;

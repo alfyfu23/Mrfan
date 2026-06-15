@@ -1,6 +1,7 @@
 # account/urls.py
 from django.urls import path
-from .views import login, register, get_info, edit_info, delete_account
+
+from .views import delete_account, edit_info, get_info, login, register
 
 urlpatterns = [
     path('login', login, name='login'),

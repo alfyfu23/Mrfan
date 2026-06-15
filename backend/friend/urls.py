@@ -1,7 +1,21 @@
 # friend/urls.py
 from django.urls import path
-from .views import befriend, search, agree, list_friends, disagree, delete_friend, check_friendship
-from .views import create_friend_group, list_groups, add_to_group, remove_from_group, rename_group, delete_group
+
+from .views import (
+    add_to_group,
+    agree,
+    befriend,
+    check_friendship,
+    create_friend_group,
+    delete_friend,
+    delete_group,
+    disagree,
+    list_friends,
+    list_groups,
+    remove_from_group,
+    rename_group,
+    search,
+)
 
 urlpatterns = [
     path('add/<int:id>', befriend, name='befriend'),

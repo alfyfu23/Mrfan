@@ -1,12 +1,11 @@
-import json
 import pytest
-from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 from django.utils import timezone
 
-from utils.jwt import generate_jwt_token
-from utils.assert_response import assert_error_response
 from chat.models import Conversation, Member, Message
+from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 
 @pytest.fixture

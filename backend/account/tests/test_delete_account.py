@@ -1,10 +1,11 @@
 import json
+
 import pytest
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
 from utils.assert_response import assert_error_response
-from django.contrib.auth.hashers import check_password
+from utils.jwt import generate_jwt_token
 
 User = get_user_model()
 
@@ -19,7 +20,7 @@ def test_delete_account_bad_method(client):
 @pytest.mark.django_db
 def test_delete_account_jwt_invalid(client):
     """❌ JWT无效"""
-    user = User.objects.create_user(username="testuser", password="123456")
+    User.objects.create_user(username="testuser", password="123456")
     resp = client.post(
         reverse("delete_account"),
         data=json.dumps({"password": "123456"}),
@@ -85,7 +86,7 @@ def test_delete_account_success(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["code"] == 0
-    
+
     # 确认用户仍然存在，但状态已变更
     user.refresh_from_db()
     assert user.is_active is False
@@ -96,11 +97,46 @@ def test_delete_account_success(client):
 
 
 @pytest.mark.django_db
+def test_delete_account_owner_disbands_group(client):
+    """✅ 群主注销时，拥有的群被标记为不可用并通知成员"""
+    from unittest.mock import patch
+
+    from chat.models import Conversation, Member
+
+    owner = User.objects.create_user(username="owner", password="123456")
+    member_user = User.objects.create_user(username="member1", password="123456")
+
+    conv = Conversation.objects.create(name="test group", type="group")
+    Member.objects.create(conversation=conv, user=owner, role="owner")
+    Member.objects.create(conversation=conv, user=member_user, role="member")
+
+    token = generate_jwt_token("owner", owner.id)
+
+    with patch("utils.notify.notify_conversation_event") as mock_notify:
+        resp = client.post(
+            reverse("delete_account"),
+            data=json.dumps({"password": "123456"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}"
+        )
+
+    assert resp.status_code == 200
+
+    conv.refresh_from_db()
+    assert conv.is_active is False
+
+    mock_notify.assert_called_once()
+    call_args = mock_notify.call_args
+    assert call_args[0][1] == "group_disbanded"
+    assert call_args[0][2] == conv.id
+
+
+@pytest.mark.django_db
 def test_register_after_deletion(client):
     """✅ 注销后可以使用相同用户名注册新用户"""
     # 创建用户
     user = User.objects.create_user(username="testuser", password="123456", email="test@example.com", info="some info")
-    
+
     # 注销用户
     token = generate_jwt_token("testuser", user.id)
     resp = client.post(
@@ -110,7 +146,7 @@ def test_register_after_deletion(client):
         HTTP_AUTHORIZATION=f"Bearer {token}"
     )
     assert resp.status_code == 200
-    
+
     # 使用相同用户名注册新用户
     resp = client.post(
         reverse("register"),
@@ -121,7 +157,7 @@ def test_register_after_deletion(client):
     data = resp.json()
     assert data["code"] == 0
     assert "jwt_token" in data
-    
+
     # 验证新用户已创建
     new_user = User.objects.filter(username="testuser", is_active=True).first()
     assert new_user is not None
@@ -133,7 +169,7 @@ def test_login_after_deletion(client):
     """❌ 注销后无法使用原账户登录"""
     # 创建用户
     user = User.objects.create_user(username="testuser", password="123456")
-    
+
     # 注销用户
     token = generate_jwt_token("testuser", user.id)
     resp = client.post(
@@ -143,7 +179,7 @@ def test_login_after_deletion(client):
         HTTP_AUTHORIZATION=f"Bearer {token}"
     )
     assert resp.status_code == 200
-    
+
     # 尝试使用原账户登录
     resp = client.post(
         reverse("login"),

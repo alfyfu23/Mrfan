@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
 
 # 模块级获取 User 模型，避免类属性命名混淆
 User = get_user_model()
@@ -42,7 +42,7 @@ class Member(models.Model):
     class Meta:
         base_manager_name = 'all_objects'
         default_manager_name = 'objects'
-    
+
     def save(self, *args, **kwargs):
         if not self.nickname:  # 如果没填 nickname，就自动使用 user 的名字
             self.nickname = self.user.username
@@ -65,11 +65,11 @@ class PinnedConversation(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='pinned_by_users')
     pin_order = models.PositiveIntegerField(default=0)  # 置顶顺序，数字越小越靠前
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         unique_together = ('user', 'conversation')  # 确保每个用户对每个会话只能置顶一次
         ordering = ['pin_order', 'created_at']  # 默认按置顶顺序排序
-    
+
     def __str__(self):
         return f"user {self.user.username} pinned conversation_{self.conversation.id} at order {self.pin_order}"
 
@@ -122,7 +122,7 @@ class GroupInvitation(models.Model):
         ('rejected', 'Rejected'),  # 已拒绝
         ('expired', 'Expired'),    # 已过期
     ]
-    
+
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='invitations')
     inviter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_invitations')  # 邀请人
     invitee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_invitations')  # 被邀请人
@@ -130,14 +130,14 @@ class GroupInvitation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     message = models.TextField(blank=True, help_text='邀请附言')  # 邀请附言
-    
+
     # 审核相关字段
     reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_invitations')  # 审核人
     review_time = models.DateTimeField(null=True, blank=True)  # 审核时间
     review_comment = models.TextField(blank=True, help_text='审核意见')  # 审核意见
-    
+
     class Meta:
         unique_together = ('conversation', 'invitee')  # 确保每个群聊对每个用户的邀请是唯一的
-        
+
     def __str__(self):
         return f"Invitation from {self.inviter.username} to {self.invitee.username} for conversation_{self.conversation.id} ({self.status})"

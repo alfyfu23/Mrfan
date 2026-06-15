@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { BACKEND_URL } from '@/constant/strings';
 import { useUserContext } from '@/context/UserContext';
 import { inviteToGroup } from '@/utils/message';
 import { get_friends_api, get_friend_info } from '@/utils/friend';
@@ -65,6 +64,7 @@ export default function InviteFriendModal({ isOpen, onClose, groupId, groupName,
         };
 
         loadFriends();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, token]);
 
     // 过滤好友列表

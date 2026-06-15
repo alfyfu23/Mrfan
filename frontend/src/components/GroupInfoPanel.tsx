@@ -9,7 +9,7 @@ import { checkFriendship, sendFriendRequest } from '@/utils/friend';
 import InviteFriendModal from './InviteFriendModal';
 import GroupInvitationsPanel from './GroupInvitationsPanel';
 
-export default function GroupInfoPanel({ convId, onClose, convName, convAvatar }: { convId: number, onClose: ()=>void, convName?: string, convAvatar?: string }) {
+export default function GroupInfoPanel({ convId, onClose, convName: _convName, convAvatar: _convAvatar }: { convId: number, onClose: ()=>void, convName?: string, convAvatar?: string }) {
     const { token, selfId, refreshConversations } = useUserContext();
     const [loading, setLoading] = useState(true);
     const [groupInfo, setGroupInfo] = useState<GroupInfoResponse | null>(null);
@@ -291,6 +291,7 @@ export default function GroupInfoPanel({ convId, onClose, convName, convAvatar }
                 }
             });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [groupInfo, token, selfId]);
 
     if (loading) return <div style={{ padding: 16 }}>加载中…</div>;
@@ -440,7 +441,6 @@ export default function GroupInfoPanel({ convId, onClose, convName, convAvatar }
                             // 判断成员角色
                             const isMemberOwner = m.role === 'owner';
                             const isMemberAdmin = m.role === 'admin';
-                            const isMemberRegular = m.role === 'member';
 
                             // 获取当前用户信息
                             const isSelf = m.id === selfId;

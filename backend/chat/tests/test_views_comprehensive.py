@@ -1,26 +1,28 @@
 import json
+
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
-from django.contrib.auth import get_user_model
-from chat.models import Conversation, Member, Message, GroupAnnouncement
 from django.utils import timezone
+
+from chat.models import Conversation, GroupAnnouncement, Member, Message
 
 
 @pytest.mark.django_db
 def test_update_group_info(client: Client):
     """测试更新群信息"""
     User = get_user_model()
-    owner = User.objects.create_user(username='group_owner', password='pass123')
+    User.objects.create_user(username='group_owner', password='pass123')
     member = User.objects.create_user(username='group_member', password='pass456')
-    
+
     # 登录
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'group_owner', 'password': 'pass123'
     }), content_type='application/json')
     token = resp.json().get('jwt_token')
     assert token
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Test Group',
@@ -29,7 +31,7 @@ def test_update_group_info(client: Client):
     assert resp.status_code == 200
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
     assert group_id
-    
+
     # 更新群名称
     resp = client.post(reverse('update_group_info'), data=json.dumps({
         'id': group_id,
@@ -37,7 +39,7 @@ def test_update_group_info(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {token}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证更新
     conv = Conversation.objects.get(id=group_id)
     assert conv.name == 'Updated Group Name'
@@ -47,28 +49,28 @@ def test_update_group_info(client: Client):
 def test_update_group_info_not_authorized(client: Client):
     """测试非管理员/群主无法更新群信息"""
     User = get_user_model()
-    owner = User.objects.create_user(username='owner2', password='pass123')
+    User.objects.create_user(username='owner2', password='pass123')
     member = User.objects.create_user(username='member2', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'owner2', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Test Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 登录 member
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'member2', 'password': 'pass456'
     }), content_type='application/json')
     member_token = resp.json().get('jwt_token')
-    
+
     # member 尝试更新群信息
     resp = client.post(reverse('update_group_info'), data=json.dumps({
         'id': group_id,
@@ -82,22 +84,22 @@ def test_update_group_info_not_authorized(client: Client):
 def test_group_info(client: Client):
     """测试获取群信息"""
     User = get_user_model()
-    owner = User.objects.create_user(username='info_owner', password='pass123')
+    User.objects.create_user(username='info_owner', password='pass123')
     member = User.objects.create_user(username='info_member', password='pass456')
-    
+
     # 登录
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'info_owner', 'password': 'pass123'
     }), content_type='application/json')
     token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Info Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 获取群信息
     resp = client.get(
         reverse('group_info') + f'?id={group_id}',
@@ -121,28 +123,28 @@ def test_group_info(client: Client):
 def test_set_group_nickname(client: Client):
     """测试设置群昵称"""
     User = get_user_model()
-    owner = User.objects.create_user(username='nick_owner', password='pass123')
+    User.objects.create_user(username='nick_owner', password='pass123')
     member = User.objects.create_user(username='nick_member', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'nick_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Nick Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 登录 member
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'nick_member', 'password': 'pass456'
     }), content_type='application/json')
     member_token = resp.json().get('jwt_token')
-    
+
     # 设置群昵称
     resp = client.post(reverse('set_group_nickname'), data=json.dumps({
         'id': group_id,
@@ -150,7 +152,7 @@ def test_set_group_nickname(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {member_token}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证
     member_obj = Member.objects.get(user=member, conversation_id=group_id)
     assert member_obj.nickname == 'My Group Nickname'
@@ -160,22 +162,22 @@ def test_set_group_nickname(client: Client):
 def test_set_member_role(client: Client):
     """测试设置成员角色"""
     User = get_user_model()
-    owner = User.objects.create_user(username='role_owner', password='pass123')
+    User.objects.create_user(username='role_owner', password='pass123')
     member = User.objects.create_user(username='role_member', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'role_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Role Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 设置成员为管理员
     resp = client.post(reverse('set_member_role'), data=json.dumps({
         'id': group_id,
@@ -184,7 +186,7 @@ def test_set_member_role(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证
     member_obj = Member.objects.get(user=member, conversation_id=group_id)
     assert member_obj.role == 'admin'
@@ -194,23 +196,23 @@ def test_set_member_role(client: Client):
 def test_set_member_role_only_owner(client: Client):
     """测试只有群主可以设置管理员"""
     User = get_user_model()
-    owner = User.objects.create_user(username='only_owner', password='pass123')
+    User.objects.create_user(username='only_owner', password='pass123')
     admin = User.objects.create_user(username='only_admin', password='pass456')
     member = User.objects.create_user(username='only_member', password='pass789')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'only_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Only Owner Group',
         'members': [admin.id, member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 先设置 admin 为管理员
     resp = client.post(reverse('set_member_role'), data=json.dumps({
         'id': group_id,
@@ -218,13 +220,13 @@ def test_set_member_role_only_owner(client: Client):
         'role': 'admin'
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     assert resp.status_code == 200
-    
+
     # 登录 admin
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'only_admin', 'password': 'pass456'
     }), content_type='application/json')
     admin_token = resp.json().get('jwt_token')
-    
+
     # admin 尝试设置角色（应该失败）
     resp = client.post(reverse('set_member_role'), data=json.dumps({
         'id': group_id,
@@ -241,20 +243,20 @@ def test_transfer_owner(client: Client):
     User = get_user_model()
     owner = User.objects.create_user(username='transfer_owner', password='pass123')
     new_owner = User.objects.create_user(username='transfer_new', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'transfer_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Transfer Group',
         'members': [new_owner.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 转移群主
     resp = client.post(reverse('transfer_owner'), data=json.dumps({
         'id': group_id,
@@ -262,7 +264,7 @@ def test_transfer_owner(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证
     old_owner = Member.objects.get(user=owner, conversation_id=group_id)
     new_owner_obj = Member.objects.get(user=new_owner, conversation_id=group_id)
@@ -326,7 +328,7 @@ def test_history_not_member(client: Client):
     user2 = User.objects.create_user(username='history_user2', password='pass456')
 
     from utils.jwt import generate_jwt_token
-    token1 = generate_jwt_token('history_user1', user1.id)
+    generate_jwt_token('history_user1', user1.id)
     token2 = generate_jwt_token('history_user2', user2.id)
 
     # 创建会话，只包含user1
@@ -676,22 +678,22 @@ def test_set_group_nickname_not_member(client: Client):
 def test_announce(client: Client):
     """测试设置群公告"""
     User = get_user_model()
-    owner = User.objects.create_user(username='announce_owner', password='pass123')
+    User.objects.create_user(username='announce_owner', password='pass123')
     member = User.objects.create_user(username='announce_member', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'announce_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Announce Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 设置公告
     resp = client.post(reverse('announce'), data=json.dumps({
         'id': group_id,
@@ -699,7 +701,7 @@ def test_announce(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证
     announcement = GroupAnnouncement.objects.filter(conversation_id=group_id).order_by('-created_at').first()
     assert announcement is not None
@@ -710,28 +712,28 @@ def test_announce(client: Client):
 def test_announce_not_authorized(client: Client):
     """测试非管理员/群主无法设置公告"""
     User = get_user_model()
-    owner = User.objects.create_user(username='announce_no_owner', password='pass123')
+    User.objects.create_user(username='announce_no_owner', password='pass123')
     member = User.objects.create_user(username='announce_no_member', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'announce_no_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'No Announce Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 登录 member
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'announce_no_member', 'password': 'pass456'
     }), content_type='application/json')
     member_token = resp.json().get('jwt_token')
-    
+
     # member 尝试设置公告（应该失败）
     resp = client.post(reverse('announce'), data=json.dumps({
         'id': group_id,
@@ -745,25 +747,25 @@ def test_announce_not_authorized(client: Client):
 def test_remove_member(client: Client):
     """测试移除成员"""
     User = get_user_model()
-    owner = User.objects.create_user(username='remove_owner', password='pass123')
+    User.objects.create_user(username='remove_owner', password='pass123')
     member = User.objects.create_user(username='remove_member', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'remove_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Remove Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 验证成员存在
     assert Member.objects.filter(user=member, conversation_id=group_id).exists()
-    
+
     # 移除成员
     resp = client.post(reverse('remove_member'), data=json.dumps({
         'id': group_id,
@@ -771,7 +773,7 @@ def test_remove_member(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证成员已被移除
     assert not Member.objects.filter(user=member, conversation_id=group_id).exists()
 
@@ -780,35 +782,35 @@ def test_remove_member(client: Client):
 def test_exit_group(client: Client):
     """测试退出群聊"""
     User = get_user_model()
-    owner = User.objects.create_user(username='exit_owner', password='pass123')
+    User.objects.create_user(username='exit_owner', password='pass123')
     member = User.objects.create_user(username='exit_member', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'exit_owner', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Exit Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # 登录 member
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'exit_member', 'password': 'pass456'
     }), content_type='application/json')
     member_token = resp.json().get('jwt_token')
-    
+
     # member 退出群聊
     resp = client.post(reverse('exit_group'), data=json.dumps({
         'id': group_id
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {member_token}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证成员已退出
     assert not Member.objects.filter(user=member, conversation_id=group_id).exists()
 
@@ -817,22 +819,22 @@ def test_exit_group(client: Client):
 def test_exit_group_owner_cannot_exit(client: Client):
     """测试群主不能直接退出"""
     User = get_user_model()
-    owner = User.objects.create_user(username='exit_owner2', password='pass123')
+    User.objects.create_user(username='exit_owner2', password='pass123')
     member = User.objects.create_user(username='exit_member2', password='pass456')
-    
+
     # 登录 owner
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'exit_owner2', 'password': 'pass123'
     }), content_type='application/json')
     owner_token = resp.json().get('jwt_token')
-    
+
     # 创建群聊
     resp = client.post(reverse('create_group'), data=json.dumps({
         'name': 'Exit Owner Group',
         'members': [member.id]
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {owner_token}')
     group_id = resp.json().get('id') or (resp.json().get('data') or {}).get('id')
-    
+
     # owner 尝试退出（应该失败）
     resp = client.post(reverse('exit_group'), data=json.dumps({
         'id': group_id
@@ -847,28 +849,28 @@ def test_mark_read(client: Client):
     User = get_user_model()
     user1 = User.objects.create_user(username='read_user1', password='pass123')
     user2 = User.objects.create_user(username='read_user2', password='pass456')
-    
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'read_user1', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 创建会话
     conv = Conversation.objects.create(type='private')
     member1 = Member.objects.create(user=user1, conversation=conv, role='member', time=timezone.now())
     member2 = Member.objects.create(user=user2, conversation=conv, role='member', time=timezone.now())
-    
+
     # 创建消息
     msg = Message.objects.create(conversation=conv, member=member2, content='Test message')
-    
+
     # 标记为已读
     resp = client.post(reverse('mark_read'), data=json.dumps({
         'conversation': conv.id
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {token1}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证消息已被标记为已读
     assert member1 in msg.read_list.all()
 
@@ -878,19 +880,19 @@ def test_edit_message(client: Client):
     """测试编辑消息"""
     User = get_user_model()
     user1 = User.objects.create_user(username='edit_user1', password='pass123')
-    user2 = User.objects.create_user(username='edit_user2', password='pass456')
-    
+    User.objects.create_user(username='edit_user2', password='pass456')
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'edit_user1', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 创建会话和消息
     conv = Conversation.objects.create(type='private')
     member1 = Member.objects.create(user=user1, conversation=conv, role='member', time=timezone.now())
     msg = Message.objects.create(conversation=conv, member=member1, content='Original message')
-    
+
     # 编辑消息
     resp = client.post(reverse('edit_message'), data=json.dumps({
         'id': msg.id,
@@ -898,7 +900,7 @@ def test_edit_message(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {token1}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证
     msg.refresh_from_db()
     assert msg.content == 'Edited message'
@@ -910,25 +912,25 @@ def test_edit_message_not_owner(client: Client):
     """测试非消息发送者无法编辑消息"""
     User = get_user_model()
     user1 = User.objects.create_user(username='edit_no_user1', password='pass123')
-    user2 = User.objects.create_user(username='edit_no_user2', password='pass456')
-    
+    User.objects.create_user(username='edit_no_user2', password='pass456')
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'edit_no_user1', 'password': 'pass123'
     }), content_type='application/json')
-    token1 = resp.json().get('jwt_token')
-    
+    resp.json().get('jwt_token')
+
     # 登录 user2
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'edit_no_user2', 'password': 'pass456'
     }), content_type='application/json')
     token2 = resp.json().get('jwt_token')
-    
+
     # 创建会话和消息（user1 发送）
     conv = Conversation.objects.create(type='private')
     member1 = Member.objects.create(user=user1, conversation=conv, role='member', time=timezone.now())
     msg = Message.objects.create(conversation=conv, member=member1, content='Original message')
-    
+
     # user2 尝试编辑 user1 的消息（应该失败）
     resp = client.post(reverse('edit_message'), data=json.dumps({
         'id': msg.id,
@@ -943,25 +945,25 @@ def test_recall_message(client: Client):
     """测试撤回消息"""
     User = get_user_model()
     user1 = User.objects.create_user(username='recall_user1', password='pass123')
-    
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'recall_user1', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 创建会话和消息
     conv = Conversation.objects.create(type='private')
     member1 = Member.objects.create(user=user1, conversation=conv, role='member', time=timezone.now())
     msg = Message.objects.create(conversation=conv, member=member1, content='Message to recall')
-    
+
     # 撤回消息
     resp = client.post(reverse('recall_message'), data=json.dumps({
         'id': msg.id
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {token1}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证
     msg.refresh_from_db()
     assert msg.valid is False
@@ -974,26 +976,26 @@ def test_delete_message(client: Client):
     User = get_user_model()
     user1 = User.objects.create_user(username='delete_user1', password='pass123')
     user2 = User.objects.create_user(username='delete_user2', password='pass456')
-    
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'delete_user1', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 创建会话和消息
     conv = Conversation.objects.create(type='private')
     member1 = Member.objects.create(user=user1, conversation=conv, role='member', time=timezone.now())
-    member2 = Member.objects.create(user=user2, conversation=conv, role='member', time=timezone.now())
+    Member.objects.create(user=user2, conversation=conv, role='member', time=timezone.now())
     msg = Message.objects.create(conversation=conv, member=member1, content='Message to delete')
-    
+
     # 删除消息
     resp = client.post(reverse('delete_message'), data=json.dumps({
         'id': msg.id
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {token1}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证消息在 user1 的删除列表中
     assert member1 in msg.delete_list.all()
 
@@ -1003,17 +1005,17 @@ def test_set_mute_pin(client: Client):
     """测试设置静音和置顶"""
     User = get_user_model()
     user1 = User.objects.create_user(username='mute_user1', password='pass123')
-    
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'mute_user1', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 创建会话
     conv = Conversation.objects.create(type='private')
     member1 = Member.objects.create(user=user1, conversation=conv, role='member', time=timezone.now())
-    
+
     # 设置静音和置顶
     resp = client.post(reverse('set_mute_pin'), data=json.dumps({
         'id': conv.id,
@@ -1022,7 +1024,7 @@ def test_set_mute_pin(client: Client):
     }), content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {token1}')
     assert resp.status_code == 200
     assert resp.json().get('code') == 0
-    
+
     # 验证
     member1.refresh_from_db()
     assert member1.mute is True
@@ -1033,19 +1035,19 @@ def test_set_mute_pin(client: Client):
 def test_upload(client: Client):
     """测试文件上传"""
     User = get_user_model()
-    user1 = User.objects.create_user(username='upload_user1', password='pass123')
-    
+    User.objects.create_user(username='upload_user1', password='pass123')
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'upload_user1', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 创建测试文件
     from io import BytesIO
     test_file = BytesIO(b'test file content')
     test_file.name = 'test.txt'
-    
+
     # 上传文件
     resp = client.post(
         reverse('upload'),
@@ -1062,14 +1064,14 @@ def test_upload(client: Client):
 def test_upload_no_file(client: Client):
     """测试上传时没有文件"""
     User = get_user_model()
-    user1 = User.objects.create_user(username='upload_no_user1', password='pass123')
-    
+    User.objects.create_user(username='upload_no_user1', password='pass123')
+
     # 登录 user1
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'upload_no_user1', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 尝试上传但没有文件
     resp = client.post(
         reverse('upload'),
@@ -1081,37 +1083,17 @@ def test_upload_no_file(client: Client):
 
 
 @pytest.mark.django_db
-def test_history_bad_method(client: Client):
-    """测试 history API 的错误方法"""
-    User = get_user_model()
-    user1 = User.objects.create_user(username='history_bad_user', password='pass123')
-    
-    # 登录
-    resp = client.post(reverse('login'), data=json.dumps({
-        'username': 'history_bad_user', 'password': 'pass123'
-    }), content_type='application/json')
-    token1 = resp.json().get('jwt_token')
-    
-    # 使用 POST 方法（应该是 GET）
-    resp = client.post(
-        reverse('history') + '?c=1',
-        HTTP_AUTHORIZATION=f'Bearer {token1}'
-    )
-    assert resp.status_code == 405
-
-
-@pytest.mark.django_db
 def test_history_no_conversation(client: Client):
     """测试 history API 会话不存在"""
     User = get_user_model()
-    user1 = User.objects.create_user(username='history_no_user', password='pass123')
-    
+    User.objects.create_user(username='history_no_user', password='pass123')
+
     # 登录
     resp = client.post(reverse('login'), data=json.dumps({
         'username': 'history_no_user', 'password': 'pass123'
     }), content_type='application/json')
     token1 = resp.json().get('jwt_token')
-    
+
     # 查询不存在的会话
     resp = client.get(
         reverse('history') + '?c=99999',

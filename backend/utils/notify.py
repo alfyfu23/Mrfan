@@ -1,5 +1,5 @@
-from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 
 def notify_conversation_event(user_ids, event_name, conversation_id):

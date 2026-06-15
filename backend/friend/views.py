@@ -1,17 +1,20 @@
-from django.http import HttpRequest
-from utils.network import BAD_METHOD, request_failed, request_success
-from utils.tools import get_jwt_token
-from utils.jwt import parse_jwt_token
-from utils.notify import notify_conversation_event
-from django.contrib.auth import get_user_model
-from django.db.models import Q
-from django.db import transaction, IntegrityError
-from django.utils import timezone
-from chat.models import Conversation, Member
-from .models import Friendship, Pending, FriendGroup
-from django.views.decorators.csrf import csrf_exempt
 import json
 import logging
+
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.http import HttpRequest
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+
+from chat.models import Conversation, Member
+from utils.jwt import parse_jwt_token
+from utils.network import BAD_METHOD, request_failed, request_success
+from utils.notify import notify_conversation_event
+from utils.tools import get_jwt_token
+
+from .models import FriendGroup, Friendship, Pending
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +112,7 @@ def befriend(req: HttpRequest, id:int):
             info="User does not exist.",
             status_code=404
         )
-    
+
     # 检查目标用户是否已注销
     if not user_to.is_active:
         return request_failed(
@@ -191,7 +194,7 @@ def search(req: HttpRequest, username: str):
     exact = []
     if not username:
         return request_success(data={"fuzzy": fuzzy, "exact": exact})
-    
+
     # 可以考虑加上一个数量限制
     # 仅返回活跃用户，避免在建群或加好友时出现已注销账号
     exact_qs = User.objects.filter(username=username, is_active=True).values_list('id', flat=True)
@@ -242,7 +245,7 @@ def agree(req: HttpRequest, id: int):
             info="Cannot establish friendship with deactivated users.",
             status_code=400
         )
-    
+
     # 检查是否确实有Pending invitation
     pending_exists = Pending.objects.filter(user_from=user_from, user_to=user_to).exists()
     logger.info(f"(agree) pending_exists={pending_exists}")
@@ -297,7 +300,7 @@ def disagree(req: HttpRequest, id: int):
             info="User not found.",
             status_code=500
         )
-    
+
     # 检查用户是否已注销
     if not user_from.is_active or not user_to.is_active:
         return request_failed(
@@ -346,7 +349,7 @@ def delete_friend(req: HttpRequest, id: int):
             info="User does not exist.",
             status_code=404
         )
-    
+
     # 检查用户是否已注销
     if not user_a.is_active or not user_b.is_active:
         return request_failed(
@@ -377,7 +380,7 @@ def delete_friend(req: HttpRequest, id: int):
         logger.warning(f"failed to cleanup FriendGroup entries after deleting friendship: {e}")
 
     return request_success()
-    
+
 @csrf_exempt  # 调试阶段禁用csrf
 def list_friends(req: HttpRequest):
     if req.method != "GET":
@@ -418,15 +421,15 @@ def create_friend_group(req: HttpRequest):
     """
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     # 提取 JWT Token 并解析
     jwt_token = get_jwt_token(req)
     user_id = parse_jwt_token(jwt_token)
-     
+
     # 校验 JWT Token 是否有效
     if not user_id:
         return request_failed(code=4001, info='Invalid JWT Token.', status_code=403)
-    
+
     # 查询用户是否存在
     User = get_user_model()
     user = User.objects.filter(id=user_id).first()
@@ -461,15 +464,15 @@ def list_groups(req: HttpRequest):
     """
     if req.method != 'GET':
         return BAD_METHOD
-    
+
     # 提取 JWT Token 并解析
     jwt_token = get_jwt_token(req)
     user_id = parse_jwt_token(jwt_token)
-    
+
     # 校验 JWT Token 是否有效
     if not user_id:
         return request_failed(code=4001, info='Invalid JWT Token.', status_code=403)
-    
+
     # 查询用户是否存在
     User = get_user_model()
     user = User.objects.filter(id=user_id).first()
@@ -510,15 +513,15 @@ def add_to_group(req: HttpRequest):
     """POST body: {group_id: int, friend_id: int} 把已是好友的 friend_id 加入分组"""
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     # 提取 JWT Token 并解析
     jwt_token = get_jwt_token(req)
     user_id = parse_jwt_token(jwt_token)
-    
+
     # 校验 JWT Token 是否有效
     if not user_id:
         return request_failed(code=4001, info='Invalid JWT Token.', status_code=403)
-    
+
     # 解析请求体
     try:
         import json
@@ -545,7 +548,7 @@ def add_to_group(req: HttpRequest):
     # 检查好友是否存在
     if not friend:
         return request_failed(code=4012, info='Friend not found.', status_code=404)
-    
+
     # 检查好友是否已注销
     if not friend.is_active:
         return request_failed(code=4014, info='Cannot add deactivated user to friend group.', status_code=400)
@@ -579,15 +582,15 @@ def remove_from_group(req: HttpRequest):
     """POST body: {group_id, friend_id} 从分组移除某好友"""
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     # 提取 JWT Token 并解析
     jwt_token = get_jwt_token(req)
     user_id = parse_jwt_token(jwt_token)
-    
+
     # 校验 JWT Token 是否有效
     if not user_id:
         return request_failed(code=4001, info='Invalid JWT Token.', status_code=403)
-    
+
     # 解析请求体
     try:
         import json
@@ -642,15 +645,15 @@ def rename_group(req: HttpRequest):
     """POST body: {group_id, name} 重命名分组"""
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     # 提取 JWT Token 并解析
     jwt_token = get_jwt_token(req)
     user_id = parse_jwt_token(jwt_token)
-    
+
     # 校验 JWT Token 是否有效
     if not user_id:
         return request_failed(code=4001, info='Invalid JWT Token.', status_code=403)
-    
+
     # 解析请求体
     try:
         import json
@@ -691,15 +694,15 @@ def delete_group(req: HttpRequest):
     """POST body: {group_id} 删除指定分组"""
     if req.method != 'POST':
         return BAD_METHOD
-    
+
     # 提取 JWT Token 并解析
     jwt_token = get_jwt_token(req)
     user_id = parse_jwt_token(jwt_token)
-    
+
     # 校验 JWT Token 是否有效
     if not user_id:
         return request_failed(code=4001, info='Invalid JWT Token.', status_code=403)
-    
+
     # 解析请求体
     try:
         import json
@@ -768,7 +771,7 @@ def check_friendship(req: HttpRequest, id: int):
             info="Target user does not exist.",
             status_code=404
         )
-    
+
     # 检查目标用户是否已注销
     if not target.is_active:
         return request_failed(

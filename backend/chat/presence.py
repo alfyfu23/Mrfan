@@ -1,7 +1,6 @@
 import asyncio
 from typing import Dict, Set
 
-
 # 维护用户在线连接计数；同一用户多端登录只在计数从 0->1 或 1->0 时广播状态
 _online_counts: Dict[int, int] = {}
 _lock = asyncio.Lock()

@@ -1,8 +1,9 @@
-from django.db import models
-from django.contrib.auth.models import AbstractUser
-from django.core.validators import RegexValidator
-from django.core.exceptions import ValidationError
 import re
+
+from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
+from django.db import models
 
 
 # ---- 用户名验证函数 ----

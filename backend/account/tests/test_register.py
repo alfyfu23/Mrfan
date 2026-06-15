@@ -1,8 +1,11 @@
 import json
+
 import pytest
-from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.urls import reverse
+
 from utils.assert_response import assert_error_response
+
 User = get_user_model()
 
 @pytest.mark.django_db
@@ -24,7 +27,7 @@ def test_bad_method(client):
     """❌ 不使用POST方法"""
     resp = client.get(reverse("register"))
     assert_error_response(resp, 405, -3, "Bad method.")
-    
+
 
 @pytest.mark.django_db
 def test_register_invalid_body(client):

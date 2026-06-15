@@ -1,17 +1,19 @@
 import json
+
 import pytest
-from friend.models import FriendGroup,Friendship
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
+from friend.models import FriendGroup, Friendship
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 User = get_user_model()
 
 @pytest.mark.django_db
 def test_add_friend_to_group_invalid_jwt(client):
     """❌ 无效JWT"""
-    user = User.objects.create_user(username="testuser", password="Password123")
+    User.objects.create_user(username="testuser", password="Password123")
     resp = client.post(
         reverse("add_to_group"),
         data=json.dumps({"group_id": 1, "friend_id": 2}),
@@ -36,7 +38,7 @@ def test_add_friend_to_group_missing_field(client):
 @pytest.mark.django_db
 def test_add_friend_to_group_user_not_found(client):
     """❌ 用户不存在"""
-    user = User.objects.create_user(username="testuser", password="Password123")
+    User.objects.create_user(username="testuser", password="Password123")
     friend = User.objects.create_user(username="friend", password="Password123")
     token = generate_jwt_token(username="testusr", id=999)
     resp = client.post(
@@ -52,7 +54,7 @@ def test_add_friend_to_group_user_not_found(client):
 def test_add_friend_to_group_friend_not_found(client):
     """❌ 好友不存在"""
     user = User.objects.create_user(username="testuser", password="Password123")
-    friend = User.objects.create_user(username="friend", password="Password123")
+    User.objects.create_user(username="friend", password="Password123")
     token = generate_jwt_token(username="testuser", id=user.id)
     resp = client.post(
         reverse("add_to_group"),

@@ -1,17 +1,19 @@
 import json
+
 import pytest
-from friend.models import FriendGroup
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-from utils.jwt import generate_jwt_token
+from django.urls import reverse
+
+from friend.models import FriendGroup
 from utils.assert_response import assert_error_response
+from utils.jwt import generate_jwt_token
 
 User = get_user_model()
 
 @pytest.mark.django_db
 def test_delete_group_invalid_jwt(client):
     """❌ 无效JWT"""
-    user = User.objects.create_user(username="testuser", password="Password123")
+    User.objects.create_user(username="testuser", password="Password123")
     resp = client.post(
         reverse("delete_group"),
         data=json.dumps({"group_id": 1}),
@@ -36,7 +38,7 @@ def test_delete_group_missing_group_id(client):
 @pytest.mark.django_db
 def test_delete_group_user_not_found(client):
     """❌ 用户不存在"""
-    user = User.objects.create_user(username="testuser", password="Password123")
+    User.objects.create_user(username="testuser", password="Password123")
     token = generate_jwt_token(username="testser", id=9999)
     resp = client.post(
         reverse("delete_group"),

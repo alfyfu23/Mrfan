@@ -1,7 +1,7 @@
 import pytest
-from django.urls import resolve, reverse
-from django.test import Client
 from django.conf import settings
+from django.test import Client
+from django.urls import resolve, reverse
 
 
 @pytest.mark.django_db
@@ -10,19 +10,19 @@ def test_url_patterns():
     # 测试 admin URL
     resolved = resolve('/admin/')
     assert resolved.url_name == 'index'  # Django admin 的 url_name 是 'index'，不是 'admin:index'
-    
+
     # 测试 account URLs
     try:
         resolve('/account/register')
     except Exception:
         pass  # URL 可能不存在，这是正常的
-    
+
     # 测试 chat URLs
     try:
         resolve('/chat/history')
     except Exception:
         pass
-    
+
     # 测试 friend URLs
     try:
         resolve('/friend/list')
@@ -36,7 +36,7 @@ def test_static_urls_in_debug():
     # 这个测试主要确保 URL 配置不会出错
     # 实际测试需要根据 settings.DEBUG 的值
     client = Client()
-    
+
     # 测试 MEDIA_URL 配置
     if settings.DEBUG:
         # 在 DEBUG 模式下，静态文件 URL 应该被配置
@@ -59,7 +59,7 @@ def test_url_reverse():
         reverse('admin:index')
     except Exception:
         pass
-    
+
     # 测试 chat URLs
     try:
         reverse('history')
@@ -72,12 +72,11 @@ def test_url_includes():
     """测试 URL include 配置"""
     # 验证各个 app 的 URLs 都被正确包含
     from im.urls import urlpatterns
-    
+
     # 检查 urlpatterns 不为空
     assert len(urlpatterns) > 0
-    
+
     # 检查是否包含预期的 URL 配置
-    url_names = [pattern.name for pattern in urlpatterns if hasattr(pattern, 'name')]
     # 至少应该有 admin
     assert 'admin' in str(urlpatterns[0])
 

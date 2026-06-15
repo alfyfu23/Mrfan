@@ -1,15 +1,17 @@
 import json
+
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
-from django.contrib.auth import get_user_model
+
 from chat.models import Conversation, Member
 
 
 @pytest.mark.django_db
 def test_create_group_and_roles(client: Client):
     User = get_user_model()
-    owner = User.objects.create_user(username='owner', password='p@ssw0rd1')
+    User.objects.create_user(username='owner', password='p@ssw0rd1')
     u2 = User.objects.create_user(username='u2', password='p@ssw0rd2')
 
     # 登录owner

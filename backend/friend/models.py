@@ -1,6 +1,7 @@
-from django.db import models
 from django.contrib.auth import get_user_model
-from django.db.models import Q, F
+from django.db import models
+from django.db.models import F, Q
+
 
 class Friendship(models.Model):
     """记录两个用户之间的好友关系（无方向，A-B 与 B-A 视为同一条记录）"""
@@ -15,7 +16,7 @@ class Friendship(models.Model):
         on_delete=models.CASCADE,
         related_name='friendships_b',
         db_index=True
-    ) 
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -36,7 +37,7 @@ class Friendship(models.Model):
 
     def __str__(self):
         return f"{self.user_a} ↔ {self.user_b}"
-    
+
 class Pending(models.Model):
     user_from = models.ForeignKey(
         get_user_model(),
@@ -51,10 +52,10 @@ class Pending(models.Model):
         db_index=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     def __str__(self):
         return f"{self.user_from} → {self.user_to}"
-    
+
 class FriendGroup(models.Model):
     User = get_user_model()
     name = models.CharField(max_length=100)  # 分组名称
@@ -71,11 +72,11 @@ class FriendGroup(models.Model):
             Q(user_a=self.user, user_b=friend) | Q(user_a=friend, user_b=self.user)
         ).exists():
             raise ValueError("User and friend are not friends.")
-        
+
         # 检查好友是否已经在该分组
         if self.friends.filter(id=friend.id).exists():
             raise ValueError("Friend already in group.")
-        
+
         # 添加好友到分组
         self.friends.add(friend)
 
@@ -86,10 +87,10 @@ class FriendGroup(models.Model):
             Q(user_a=self.user, user_b=friend) | Q(user_a=friend, user_b=self.user)
         ).exists():
             raise ValueError("User and friend are not friends.")
-        
+
         # 检查好友是否不在该分组
         if not self.friends.filter(id=friend.id).exists():
             raise ValueError("Friend not in this group.")
-        
+
         self.friends.remove(friend)
 
